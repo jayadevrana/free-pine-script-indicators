@@ -8,7 +8,7 @@ Every script compiles cleanly in Pine Script v6 and the signal logic is non-repa
 
 | Script | Type | What it does | Code | Video |
 |---|---|---|---|---|
-| **EMA Trend Signals** | Indicator (overlay) | 9/21 EMA crossover filtered by a 200 EMA trend, trend fill, non-repainting BUY/SELL labels, alert conditions | [scripts/ema-trend-signals.pine.txt](scripts/ema-trend-signals.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/ema-trend-signals/) | [▶ Channel](https://www.youtube.com/@jayadevranaalgo) |
+| **EMA Trend Signals** | Indicator (overlay) | 9/21 EMA crossover filtered by a 200 EMA trend, trend fill, non-repainting BUY/SELL labels, alert conditions | [scripts/ema-trend-signals.pine.txt](scripts/ema-trend-signals.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/ema-trend-signals/) | [▶ Watch the lesson](https://youtu.be/dRnKEIgOgPs) |
 | **RSI Zones** | Indicator (pane) | RSI with 70/30 levels and overbought/oversold background shading | [scripts/rsi-zones.pine.txt](scripts/rsi-zones.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/rsi-zones/) | [▶ Watch](https://youtu.be/hWeaFBH0lbk) |
 | **EMA Trend Strategy** | Strategy | EMA trend entries, 2 ATR stop / 3 ATR target, 0.05% commission + 2 ticks slippage, JSON `alert_message` for webhook automation | [scripts/ema-trend-strategy.pine.txt](scripts/ema-trend-strategy.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/ema-trend-strategy/) | [▶ Watch](https://youtu.be/hWeaFBH0lbk) |
 
