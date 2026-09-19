@@ -1,0 +1,34 @@
+//@version=6
+strategy("EMA Trend Strategy", overlay = true, initial_capital = 10000,
+  default_qty_type = strategy.percent_of_equity, default_qty_value = 10,
+  commission_type = strategy.commission.percent, commission_value = 0.05,
+  slippage = 2)
+
+fastEma  = ta.ema(close, 9)
+slowEma  = ta.ema(close, 21)
+trendEma = ta.ema(close, 200)
+atr      = ta.atr(14)
+
+longSignal  = ta.crossover(fastEma, slowEma) and close > trendEma
+shortSignal = ta.crossunder(fastEma, slowEma) and close < trendEma
+
+buyMsg  = '{"side":"buy","symbol":"{{ticker}}"}'
+sellMsg = '{"side":"sell","symbol":"{{ticker}}"}'
+
+if longSignal
+    strategy.entry("Long", strategy.long, alert_message = buyMsg)
+if shortSignal
+    strategy.entry("Short", strategy.short, alert_message = sellMsg)
+
+if strategy.position_size > 0
+    strategy.exit("Long exit", "Long",
+      stop  = strategy.position_avg_price - 2 * atr,
+      limit = strategy.position_avg_price + 3 * atr)
+if strategy.position_size < 0
+    strategy.exit("Short exit", "Short",
+      stop  = strategy.position_avg_price + 2 * atr,
+      limit = strategy.position_avg_price - 3 * atr)
+
+plot(fastEma, "Fast EMA", color.teal)
+plot(slowEma, "Slow EMA", color.orange)
+plot(trendEma, "Trend EMA", color.gray, 2)

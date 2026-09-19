@@ -1,0 +1,36 @@
+//@version=6
+indicator("EMA Trend Signals", overlay = true)
+
+// ── Inputs ─────────────────────────────
+fastLen  = input.int(9,   "Fast EMA",  minval = 1)
+slowLen  = input.int(21,  "Slow EMA",  minval = 1)
+trendLen = input.int(200, "Trend EMA", minval = 1)
+
+// ── Calculations ───────────────────────
+fastEma  = ta.ema(close, fastLen)
+slowEma  = ta.ema(close, slowLen)
+trendEma = ta.ema(close, trendLen)
+
+// ── Plots ──────────────────────────────
+pFast = plot(fastEma, "Fast EMA", color.teal, 2)
+pSlow = plot(slowEma, "Slow EMA", color.orange, 2)
+plot(trendEma, "Trend EMA", color.gray, 3)
+
+bullish = fastEma > slowEma
+fill(pFast, pSlow, bullish ? color.new(color.teal, 80) : color.new(color.orange, 80))
+
+// ── Signals ────────────────────────────
+upTrend   = close > trendEma
+downTrend = close < trendEma
+
+buySignal  = ta.crossover(fastEma, slowEma)  and upTrend and barstate.isconfirmed
+sellSignal = ta.crossunder(fastEma, slowEma) and downTrend and barstate.isconfirmed
+
+plotshape(buySignal, "Buy", shape.triangleup, location.belowbar,
+  color.teal, text = "BUY", textcolor = color.teal, size = size.small)
+plotshape(sellSignal, "Sell", shape.triangledown, location.abovebar,
+  color.orange, text = "SELL", textcolor = color.orange, size = size.small)
+
+// ── Alerts ─────────────────────────────
+alertcondition(buySignal,  "Buy",  "EMA Trend Signals: BUY on {{ticker}}")
+alertcondition(sellSignal, "Sell", "EMA Trend Signals: SELL on {{ticker}}")
