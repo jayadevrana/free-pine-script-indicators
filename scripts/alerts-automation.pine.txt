@@ -1,0 +1,42 @@
+//@version=6
+indicator("Alerts & Automation", overlay = true)
+
+// 1. Settings
+fastLen = input.int(9, "Fast average")
+slowLen = input.int(21, "Slow average")
+qty     = input.float(0.01, "Order size to send", step = 0.01)
+
+// 2. The signals we want to be told about
+fast = ta.ema(close, fastLen)
+slow = ta.ema(close, slowLen)
+plot(fast, "Fast", color.aqua)
+plot(slow, "Slow", color.orange)
+buySignal  = ta.crossover(fast, slow)
+sellSignal = ta.crossunder(fast, slow)
+
+// 3. A readable message for your phone
+priceText = str.tostring(close, format.mintick)
+buyText   = "BUY " + syminfo.ticker + " at " + priceText
+sellText  = "SELL " + syminfo.ticker + " at " + priceText
+
+// 4. A machine-readable message for a broker webhook
+buyJson  = '{"action":"buy","symbol":"' + syminfo.ticker +
+  '","qty":' + str.tostring(qty) + '}'
+sellJson = '{"action":"sell","symbol":"' + syminfo.ticker +
+  '","qty":' + str.tostring(qty) + '}'
+
+// 5. alert() fires by itself, once the candle closes
+if buySignal and barstate.isconfirmed
+    alert(buyJson, alert.freq_once_per_bar_close)
+if sellSignal and barstate.isconfirmed
+    alert(sellJson, alert.freq_once_per_bar_close)
+
+// 6. alertcondition() appears in the alert menu instead
+alertcondition(buySignal, "Buy signal", "{{ticker}} buy")
+alertcondition(sellSignal, "Sell signal", "{{ticker}} sell")
+
+// 7. Show the signals on the chart
+plotshape(buySignal, "Buy", shape.triangleup, location.belowbar,
+  color.green, text = "BUY", textcolor = color.white, size = size.small)
+plotshape(sellSignal, "Sell", shape.triangledown, location.abovebar,
+  color.red, text = "SELL", textcolor = color.white, size = size.small)

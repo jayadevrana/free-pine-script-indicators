@@ -20,6 +20,7 @@ Every script compiles cleanly in Pine Script v6; signal logic is non-repainting.
 | **Session Filter** | Indicator (Overlay) | Shades your trading hours on the chart and keeps signals only inside them. Every signal the filter removed is marked with a grey cross, so you can see exactly what it cost you. | [scripts/session-filter.pine.txt](scripts/session-filter.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/session-filter/) | [▶ Watch](https://youtu.be/DT3yRTlD7U8) |
 | **Risk Managed Strategy** | Strategy (Overlay) | An ATR stop and a position size calculated from the risk you choose, so every loss costs the same. The back test result is honestly negative, and the lesson explains exactly why. | [scripts/risk-strategy.pine.txt](scripts/risk-strategy.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/risk-strategy/) | [▶ Watch](https://youtu.be/MXxL8ZLBYms) |
 | **Mini Screener** | Indicator (Overlay) | One table on one chart that watches five markets at once: price, change since the last candle, and whether each one is above its trend average. Built with arrays and a loop. | [scripts/mini-screener.pine.txt](scripts/mini-screener.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/mini-screener/) | [▶ Watch](https://youtu.be/5u6-1ko4iqs) |
+| **Alerts & Automation** | Indicator (Overlay) | Both ways Pine Script raises an alert, side by side: a readable message for your phone, and a JSON message for a webhook, which is the first real step towards automated trading. | [scripts/alerts-automation.pine.txt](scripts/alerts-automation.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/alerts-automation/) | [▶ Watch](https://youtu.be/pvDtQ_6nkig) |
 
 ## EMA Trend Signals
 ![EMA Trend Signals on a TradingView chart](images/ema-signals-chart.jpg)
@@ -128,6 +129,15 @@ One table on one chart that watches five markets at once: price, change since th
 - One small function returns three answers in a bag: [close, change, above trend].
 - request.security runs that function on each symbol you pick, so each call carries three values instead of one.
 - array.from stores the answers and a for loop fills every row, so adding markets does not mean adding code.
+
+## Alerts & Automation
+![Alerts & Automation on a TradingView chart](images/alerts-automation-chart.jpg)
+
+Both ways Pine Script raises an alert, side by side: a readable message for your phone, and a JSON message for a webhook, which is the first real step towards automated trading.
+
+- alertcondition() adds an entry to the alert menu. alert() fires from inside the code and can build the message while the script runs.
+- barstate.isconfirmed means the alert only fires on a finished candle, so a signal cannot vanish after it fires.
+- The JSON message is plain text in a shape a program can read: send it to a webhook and your own program places the order.
 
 ## How to use
 1. In TradingView open the **Pine Editor**, create a new indicator (or strategy for strategy files).
