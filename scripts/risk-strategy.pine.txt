@@ -1,0 +1,40 @@
+//@version=6
+strategy("Risk Managed Strategy", overlay = true, initial_capital = 10000,
+  default_qty_type = strategy.percent_of_equity, default_qty_value = 100,
+  commission_type = strategy.commission.percent, commission_value = 0.05,
+  slippage = 2)
+
+// 1. Settings: the trend rule and how much you risk
+emaLen    = input.int(50, "Trend average length")
+atrLen    = input.int(14, "ATR length")
+stopMult  = input.float(2.0, "Stop = ATR x", step = 0.5)
+rewardMult = input.float(2.0, "Target = risk x", step = 0.5)
+riskPct   = input.float(1.0, "Risk % of equity", step = 0.25)
+
+// 2. How far price normally moves in one candle
+atr   = ta.atr(atrLen)
+trend = ta.ema(close, emaLen)
+plot(trend, "Trend", color.orange, 2)
+
+// 3. The entry rule, same as lesson 5
+buySignal = ta.crossover(close, trend)
+
+// 4. Stop distance in points, measured by the market itself
+stopDist = atr * stopMult
+
+// 5. Position size, so a stop loss always costs the same
+riskCash = strategy.equity * riskPct / 100
+riskQty  = stopDist > 0 ? riskCash / stopDist : na
+maxQty   = strategy.equity / close
+qty      = math.min(riskQty, maxQty)
+
+// 6. Enter with that calculated size
+if buySignal and strategy.position_size == 0 and not na(qty)
+    strategy.entry("Long", strategy.long, qty = qty)
+
+// 7. Stop and target, both measured from the entry price
+entryPrice = strategy.position_avg_price
+stopPrice  = entryPrice - stopDist
+takePrice  = entryPrice + stopDist * rewardMult
+if strategy.position_size > 0
+    strategy.exit("Exit", "Long", stop = stopPrice, limit = takePrice)

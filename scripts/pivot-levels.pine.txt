@@ -1,0 +1,37 @@
+//@version=6
+indicator("Pivot Levels", overlay = true, max_lines_count = 100)
+
+// 1. Settings: how many candles make a turning point
+leftBars  = input.int(10, "Candles to the left", minval = 1)
+rightBars = input.int(10, "Candles to the right", minval = 1)
+showLines = input.bool(true, "Draw the levels")
+
+// 2. Find the turning points
+pivotHigh = ta.pivothigh(high, leftBars, rightBars)
+pivotLow  = ta.pivotlow(low, leftBars, rightBars)
+
+// 3. Remember the last line we drew, so we can extend it
+var line resistLine = na
+var line supportLine = na
+
+// 4. A new pivot high means a new resistance level
+if not na(pivotHigh) and showLines
+    resistLine := line.new(bar_index - rightBars, pivotHigh, bar_index,
+      pivotHigh, color = color.red, width = 2)
+
+// 5. A new pivot low means a new support level
+if not na(pivotLow) and showLines
+    supportLine := line.new(bar_index - rightBars, pivotLow, bar_index,
+      pivotLow, color = color.green, width = 2)
+
+// 6. Stretch both lines to the newest candle
+if not na(resistLine)
+    line.set_x2(resistLine, bar_index)
+if not na(supportLine)
+    line.set_x2(supportLine, bar_index)
+
+// 7. Alert when price breaks the newest level
+resPrice = na(resistLine) ? na : line.get_y2(resistLine)
+supPrice = na(supportLine) ? na : line.get_y2(supportLine)
+alertcondition(ta.crossover(close, resPrice), "Broke resistance")
+alertcondition(ta.crossunder(close, supPrice), "Broke support")

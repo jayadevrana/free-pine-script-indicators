@@ -16,6 +16,10 @@ Every script compiles cleanly in Pine Script v6; signal logic is non-repainting.
 | **Engulfing Candles** | Indicator (Overlay) | Finds bullish and bearish engulfing candles automatically, labels them BULL and BEAR, paints the candle itself, and sends alerts. A body-size ratio filters out the weak patterns. | [scripts/engulfing-candles.pine.txt](scripts/engulfing-candles.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/engulfing-candles/) | [▶ Watch](https://youtu.be/NsH5iIXTcFU) |
 | **My First Strategy** | Strategy (Overlay) | A beginner strategy for learning the Strategy Tester: buy when price closes back above a trend average, then a 2% stop loss and a 4% take profit. Commission and slippage are included, so the back test is honest. | [scripts/first-strategy.pine.txt](scripts/first-strategy.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/first-strategy/) | [▶ Watch](https://youtu.be/at8brpnawyE) |
 | **Trend Dashboard** | Indicator (Overlay) | A small table in the corner of the chart showing whether price is above or below its trend average on three timeframes at once. Every timeframe is a setting, so you can match it to how you trade. | [scripts/trend-dashboard.pine.txt](scripts/trend-dashboard.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/trend-dashboard/) | [▶ Watch](https://youtu.be/7PgWNFcVHmo) |
+| **Pivot Levels** | Indicator (Overlay) | Support and resistance drawn by the code: it finds pivot highs and lows, draws each level as a line that stretches forward with price, and alerts you when the newest level breaks. | [scripts/pivot-levels.pine.txt](scripts/pivot-levels.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/pivot-levels/) | [▶ Watch](https://youtu.be/lwA9H_CYzbA) |
+| **Session Filter** | Indicator (Overlay) | Shades your trading hours on the chart and keeps signals only inside them. Every signal the filter removed is marked with a grey cross, so you can see exactly what it cost you. | [scripts/session-filter.pine.txt](scripts/session-filter.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/session-filter/) | [▶ Watch](https://youtu.be/DT3yRTlD7U8) |
+| **Risk Managed Strategy** | Strategy (Overlay) | An ATR stop and a position size calculated from the risk you choose, so every loss costs the same. The back test result is honestly negative, and the lesson explains exactly why. | [scripts/risk-strategy.pine.txt](scripts/risk-strategy.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/risk-strategy/) | [▶ Watch](https://youtu.be/MXxL8ZLBYms) |
+| **Mini Screener** | Indicator (Overlay) | One table on one chart that watches five markets at once: price, change since the last candle, and whether each one is above its trend average. Built with arrays and a loop. | [scripts/mini-screener.pine.txt](scripts/mini-screener.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/mini-screener/) | [▶ Watch](https://youtu.be/5u6-1ko4iqs) |
 
 ## EMA Trend Signals
 ![EMA Trend Signals on a TradingView chart](images/ema-signals-chart.jpg)
@@ -88,6 +92,42 @@ A small table in the corner of the chart showing whether price is above or below
 - A small trendUp() function asks one question: is the close above its EMA?
 - request.security runs that same function on each of the three timeframes you choose.
 - table.new with var creates the table once, and barstate.islast fills it in on the newest candle only.
+
+## Pivot Levels
+![Pivot Levels on a TradingView chart](images/pivot-levels-chart.jpg)
+
+Support and resistance drawn by the code: it finds pivot highs and lows, draws each level as a line that stretches forward with price, and alerts you when the newest level breaks.
+
+- ta.pivothigh and ta.pivotlow find a candle that is higher (or lower) than the chosen number of candles on both sides.
+- A level is only confirmed after the right-hand candles exist, so it appears a few candles late. That is honest, not a bug.
+- line.set_x2 stretches the newest support and resistance to the current candle on every bar.
+
+## Session Filter
+![Session Filter on a TradingView chart](images/session-filter-chart.jpg)
+
+Shades your trading hours on the chart and keeps signals only inside them. Every signal the filter removed is marked with a grey cross, so you can see exactly what it cost you.
+
+- time() returns na outside the session, so not na(time(...)) is true only inside your hours.
+- bgcolor shades those hours; na means paint nothing at all.
+- buySignal = rawBuy and inSession. That single "and" is the whole filter.
+
+## Risk Managed Strategy
+![Risk Managed Strategy on a TradingView chart](images/risk-strategy-chart.jpg)
+
+An ATR stop and a position size calculated from the risk you choose, so every loss costs the same. The back test result is honestly negative, and the lesson explains exactly why.
+
+- stopDist = ATR x multiplier, so the stop fits how far price is actually moving today.
+- qty = math.min(riskCash / stopDist, equity / close): every loss costs the same, and the size never exceeds what the account can fund.
+- A tighter stop means more trades (199 in lesson 5 became 504 here), and every extra trade pays commission and slippage.
+
+## Mini Screener
+![Mini Screener on a TradingView chart](images/mini-screener-chart.jpg)
+
+One table on one chart that watches five markets at once: price, change since the last candle, and whether each one is above its trend average. Built with arrays and a loop.
+
+- One small function returns three answers in a bag: [close, change, above trend].
+- request.security runs that function on each symbol you pick, so each call carries three values instead of one.
+- array.from stores the answers and a for loop fills every row, so adding markets does not mean adding code.
 
 ## How to use
 1. In TradingView open the **Pine Editor**, create a new indicator (or strategy for strategy files).

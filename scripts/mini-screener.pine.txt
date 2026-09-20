@@ -1,0 +1,50 @@
+//@version=6
+indicator("Mini Screener", overlay = true)
+
+// 1. Settings: five symbols and the trend length
+sym1   = input.symbol("BINANCE:BTCUSDT", "Symbol 1")
+sym2   = input.symbol("BINANCE:ETHUSDT", "Symbol 2")
+sym3   = input.symbol("BINANCE:SOLUSDT", "Symbol 3")
+sym4   = input.symbol("BINANCE:BNBUSDT", "Symbol 4")
+sym5   = input.symbol("BINANCE:XRPUSDT", "Symbol 5")
+emaLen = input.int(50, "Trend average length")
+
+// 2. One question, asked about any symbol
+report() =>
+    ema = ta.ema(close, emaLen)
+    chg = 100 * (close - close[1]) / close[1]
+    [close, chg, close > ema]
+
+// 3. Ask the same question about all five
+[p1, c1, u1] = request.security(sym1, timeframe.period, report())
+[p2, c2, u2] = request.security(sym2, timeframe.period, report())
+[p3, c3, u3] = request.security(sym3, timeframe.period, report())
+[p4, c4, u4] = request.security(sym4, timeframe.period, report())
+[p5, c5, u5] = request.security(sym5, timeframe.period, report())
+
+// 4. Put the answers into arrays, so we can loop over them
+names  = array.from(sym1, sym2, sym3, sym4, sym5)
+prices = array.from(p1, p2, p3, p4, p5)
+changes = array.from(c1, c2, c3, c4, c5)
+trends = array.from(u1, u2, u3, u4, u5)
+
+// 5. The table, created once
+var table screen = table.new(position.top_right, 3, 6, border_width = 2)
+
+// 6. A helper that writes one cell
+cell(col, row, txt, bg) =>
+    table.cell(screen, col, row, txt, text_color = color.white,
+      bgcolor = bg, text_size = size.normal)
+
+// 7. Fill the screener on the last candle only
+if barstate.islast
+    cell(0, 0, "Symbol", color.gray)
+    cell(1, 0, "Price", color.gray)
+    cell(2, 0, "Change", color.gray)
+    for i = 0 to 4
+        name = str.replace_all(array.get(names, i), "BINANCE:", "")
+        up = array.get(trends, i)
+        chg = array.get(changes, i)
+        cell(0, i + 1, name, up ? color.green : color.red)
+        cell(1, i + 1, str.tostring(array.get(prices, i), "#.##"), color.gray)
+        cell(2, i + 1, str.tostring(chg, "#.##") + "%", color.gray)

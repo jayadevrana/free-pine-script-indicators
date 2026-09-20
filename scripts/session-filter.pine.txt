@@ -1,0 +1,35 @@
+//@version=6
+indicator("Session Filter", overlay = true)
+
+// 1. Settings: which hours you want to trade
+sessionTime = input.session("0800-1600", "Trading session")
+sessionZone = input.string("Europe/London", "Timezone")
+fastLen     = input.int(9, "Fast average")
+slowLen     = input.int(21, "Slow average")
+
+// 2. Are we inside the session right now?
+inSession = not na(time(timeframe.period, sessionTime, sessionZone))
+
+// 3. Shade the background during the session
+bgcolor(inSession ? color.new(color.blue, 92) : na)
+
+// 4. The signal we want to filter
+fast = ta.ema(close, fastLen)
+slow = ta.ema(close, slowLen)
+plot(fast, "Fast", color.aqua)
+plot(slow, "Slow", color.orange)
+
+// 5. The raw crossover, at any time of day
+rawBuy = ta.crossover(fast, slow)
+
+// 6. The same signal, but only inside your session
+buySignal = rawBuy and inSession
+
+// 7. Show both, so you can see what the filter removed
+plotshape(rawBuy and not inSession, "Skipped", shape.xcross,
+  location.belowbar, color.gray, size = size.tiny)
+plotshape(buySignal, "Buy", shape.triangleup, location.belowbar,
+  color.green, size = size.small)
+
+// 8. Alert only for the filtered signal
+alertcondition(buySignal, "Buy in session", "{{ticker}} buy inside session")
