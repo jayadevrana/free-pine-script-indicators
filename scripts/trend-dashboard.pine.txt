@@ -1,0 +1,36 @@
+//@version=6
+indicator("Trend Dashboard", overlay = true)
+
+// 1. Settings: the trend line length and three timeframes
+emaLen = input.int(50, "Trend average length")
+tf1    = input.timeframe("15", "Timeframe 1")
+tf2    = input.timeframe("60", "Timeframe 2")
+tf3    = input.timeframe("D", "Timeframe 3")
+
+// 2. One question: is the price above its trend line?
+trendUp() => close > ta.ema(close, emaLen)
+plot(ta.ema(close, emaLen), "Trend", color.orange, 2)
+
+// 3. Ask each timeframe the same question
+up1 = request.security(syminfo.tickerid, tf1, trendUp())
+up2 = request.security(syminfo.tickerid, tf2, trendUp())
+up3 = request.security(syminfo.tickerid, tf3, trendUp())
+
+// 4. Create the table once, in the top right corner
+var table dash = table.new(position.top_right, 2, 4, border_width = 2)
+
+// 5. A helper that writes one cell
+cell(col, row, txt, bg) =>
+    table.cell(dash, col, row, txt, text_color = color.white, bgcolor = bg,
+      text_size = size.large)
+
+// 6. Fill in the table on the last candle only
+if barstate.islast
+    cell(0, 0, "Timeframe", color.gray)
+    cell(1, 0, "Trend", color.gray)
+    cell(0, 1, tf1, color.gray)
+    cell(1, 1, up1 ? "UP" : "DOWN", up1 ? color.green : color.red)
+    cell(0, 2, tf2, color.gray)
+    cell(1, 2, up2 ? "UP" : "DOWN", up2 ? color.green : color.red)
+    cell(0, 3, tf3, color.gray)
+    cell(1, 3, up3 ? "UP" : "DOWN", up3 ? color.green : color.red)

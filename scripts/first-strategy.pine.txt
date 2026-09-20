@@ -1,0 +1,28 @@
+//@version=6
+strategy("My First Strategy", overlay = true, initial_capital = 10000,
+  default_qty_type = strategy.percent_of_equity, default_qty_value = 10,
+  commission_type = strategy.commission.percent, commission_value = 0.05,
+  slippage = 2)
+
+// 1. Settings you can change later
+emaLen  = input.int(50, "Trend average length")
+stopPct = input.float(2.0, "Stop loss %", step = 0.5)
+takePct = input.float(4.0, "Take profit %", step = 0.5)
+
+// 2. The trend line
+trend = ta.ema(close, emaLen)
+plot(trend, "Trend", color.orange, 2)
+
+// 3. The entry rule: price closes back above the trend line
+buySignal = ta.crossover(close, trend)
+
+// 4. Place the order, but only if we are not already in a trade
+if buySignal and strategy.position_size == 0
+    strategy.entry("Long", strategy.long)
+
+// 5. Stop loss and take profit, measured from the entry price
+entryPrice = strategy.position_avg_price
+stopPrice  = entryPrice * (1 - stopPct / 100)
+takePrice  = entryPrice * (1 + takePct / 100)
+if strategy.position_size > 0
+    strategy.exit("Exit", "Long", stop = stopPrice, limit = takePrice)

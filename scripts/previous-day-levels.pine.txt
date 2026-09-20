@@ -1,0 +1,30 @@
+//@version=6
+indicator("Previous Day Levels", overlay = true)
+
+// 1. Settings: the colours of the two lines
+highColor = input.color(color.green, "High colour")
+lowColor  = input.color(color.red, "Low colour")
+
+// 2. The safe way to read yesterday (no repainting)
+noRepaint = barmerge.lookahead_on
+
+// 3. Yesterday's high and low, taken from the daily chart
+prevHigh = request.security(syminfo.tickerid, "D", high[1], lookahead = noRepaint)
+prevLow  = request.security(syminfo.tickerid, "D", low[1], lookahead = noRepaint)
+
+// 4. Draw them as step lines that jump to the new level each day
+pHigh = plot(prevHigh, "Prev day high", highColor, 2, plot.style_stepline)
+pLow  = plot(prevLow, "Prev day low", lowColor, 2, plot.style_stepline)
+
+// 5. Shade yesterday's range
+fill(pHigh, pLow, color.new(color.gray, 90))
+
+// 6. Did price break out of yesterday's range?
+breakUp   = ta.crossover(close, prevHigh)
+breakDown = ta.crossunder(close, prevLow)
+plotshape(breakUp, "Break up", shape.triangleup, location.belowbar, highColor)
+plotshape(breakDown, "Break down", shape.triangledown, location.abovebar, lowColor)
+
+// 7. Alerts
+alertcondition(breakUp, "Broke yesterday's high", "{{ticker}} broke the high")
+alertcondition(breakDown, "Broke yesterday's low", "{{ticker}} broke the low")
