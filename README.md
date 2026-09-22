@@ -21,6 +21,16 @@ Every script compiles cleanly in Pine Script v6; signal logic is non-repainting.
 | **Risk Managed Strategy** | Strategy (Overlay) | An ATR stop and a position size calculated from the risk you choose, so every loss costs the same. The back test result is honestly negative, and the lesson explains exactly why. | [scripts/risk-strategy.pine.txt](scripts/risk-strategy.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/risk-strategy/) | [▶ Watch](https://youtu.be/MXxL8ZLBYms) |
 | **Mini Screener** | Indicator (Overlay) | One table on one chart that watches five markets at once: price, change since the last candle, and whether each one is above its trend average. Built with arrays and a loop. | [scripts/mini-screener.pine.txt](scripts/mini-screener.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/mini-screener/) | [▶ Watch](https://youtu.be/5u6-1ko4iqs) |
 | **Alerts & Automation** | Indicator (Overlay) | Both ways Pine Script raises an alert, side by side: a readable message for your phone, and a JSON message for a webhook, which is the first real step towards automated trading. | [scripts/alerts-automation.pine.txt](scripts/alerts-automation.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/alerts-automation/) | [▶ Watch](https://youtu.be/pvDtQ_6nkig) |
+| **Z-Score Lab** | Indicator (Overlay) | Standard deviation bands drawn on price, with a live table that counts how often price actually left them and compares that with what a normal distribution predicts. On crypto the 2-sigma band is breached about three times more often than the textbook says. | [scripts/zscore-mean-reversion.pine.txt](scripts/zscore-mean-reversion.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/zscore-mean-reversion/) | [▶ Watch](https://youtu.be/-tCUpEE4Ct4) |
+| **Expectancy & Kelly Lab** | Indicator (Overlay) | A deliberately simple moving-average signal that keeps its own trade list, then measures its expectancy in R, the full Kelly fraction implied by its own win rate and payoff, and the growth rate you would get at Kelly and at twice Kelly. | [scripts/expectancy-kelly.pine.txt](scripts/expectancy-kelly.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/expectancy-kelly/) | [▶ Watch](https://youtu.be/Fh9AtbO8ZvY) |
+| **Monte Carlo Lab** | Indicator (Overlay) | Your backtest is one ordering of your trades, not the only one it could have had. This shuffles the same closed trades into two hundred alternative histories and shows where the real backtest sits among them. | [scripts/monte-carlo.pine.txt](scripts/monte-carlo.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/monte-carlo/) | [▶ Watch](https://youtu.be/OyaFzI_rVOE) |
+| **Martingale Lab** | Indicator (Overlay) | Doubling after a loss tested honestly. The same 209 trades are re-run under flat sizing, martingale and anti-martingale, across three hundred orderings, and the ruin rate is counted rather than argued about. | [scripts/martingale-truth.pine.txt](scripts/martingale-truth.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/martingale-truth/) | [▶ Watch](https://youtu.be/wXS81lXHeqM) |
+| **Volatility Regime Lab** | Indicator (Overlay) | ATR in dollars tells you nothing on its own. This ranks today's ATR against its own recent history, splits the chart into quiet, normal and wild regimes, and measures the forward return that followed each one. | [scripts/volatility-regimes.pine.txt](scripts/volatility-regimes.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/volatility-regimes/) | [▶ Watch](https://youtu.be/wNdQzvISD7k) |
+| **Supply & Demand Zones** | Indicator (Overlay) | What the paid zone indicators are actually doing, written out in arithmetic: a small-bodied base candle, then an impulse candle that runs away from it, leaves a zone behind. | [scripts/supply-demand-zones.pine.txt](scripts/supply-demand-zones.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/supply-demand-zones/) | [▶ Watch](https://youtu.be/xG09uw2ISPE) |
+| **Correlation Matrix & Effective Bets** | Indicator (Separate pane) | Six symbols, every pairwise correlation, and the number that matters: how many genuinely independent positions your basket actually contains. | [scripts/correlation-matrix.pine.txt](scripts/correlation-matrix.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/correlation-matrix/) | [▶ Watch](https://youtu.be/szRdDqKLIdg) |
+| **Walk-Forward Lab** | Indicator (Overlay) | Overfitting shown rather than warned about: 154 parameter settings over 20,000 hourly candles, the in-sample best compared with an eight-fold walk-forward and with one fixed setting that was never re-optimised. | [scripts/walk-forward.pine.txt](scripts/walk-forward.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/walk-forward/) | [▶ Watch](https://youtu.be/uLcCai8XoC0) |
+| **Market Structure: BOS & CHoCH** | Indicator (Overlay) | Break of structure and change of character defined precisely enough to count, then scored: what price actually did in the twenty bars after each signal. | [scripts/market-structure.pine.txt](scripts/market-structure.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/market-structure/) | [▶ Watch](https://youtu.be/a0Pej1hrIzk) |
+| **Complete System: Regime + Edge + Risk** | Indicator (Overlay) | The finale of the advanced arc: a regime gate that decides IF we trade, a moving-average edge that decides WHERE, and a Kelly fraction measured from the strategy's own closed trades that decides HOW BIG. | [scripts/complete-system.pine.txt](scripts/complete-system.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/complete-system/) | [▶ Watch](https://youtu.be/_G20LmPH_H0) |
 
 ## EMA Trend Signals
 ![EMA Trend Signals on a TradingView chart](images/ema-signals-chart.jpg)
@@ -138,6 +148,96 @@ Both ways Pine Script raises an alert, side by side: a readable message for your
 - alertcondition() adds an entry to the alert menu. alert() fires from inside the code and can build the message while the script runs.
 - barstate.isconfirmed means the alert only fires on a finished candle, so a signal cannot vanish after it fires.
 - The JSON message is plain text in a shape a program can read: send it to a webhook and your own program places the order.
+
+## Z-Score Lab
+![Z-Score Lab on a TradingView chart](images/zscore-mean-reversion-chart.jpg)
+
+Standard deviation bands drawn on price, with a live table that counts how often price actually left them and compares that with what a normal distribution predicts. On crypto the 2-sigma band is breached about three times more often than the textbook says.
+
+- ta.sma and ta.stdev over the lookback give the mean and the sigma; the z-score is just how many sigmas price sits from that mean.
+- The histogram is a table, not a drawing: the z-scores are bucketed into fixed bins and each row is coloured by count, so it renders on any TradingView build.
+- The normal comparison uses an Abramowitz-Stegun approximation of the normal CDF, so the expected percentages are computed in Pine rather than hard-coded.
+
+## Expectancy & Kelly Lab
+![Expectancy & Kelly Lab on a TradingView chart](images/expectancy-kelly-chart.jpg)
+
+A deliberately simple moving-average signal that keeps its own trade list, then measures its expectancy in R, the full Kelly fraction implied by its own win rate and payoff, and the growth rate you would get at Kelly and at twice Kelly.
+
+- Trades are tracked in ordinary variables: one open trade at a time, a loser is -1R and a winner is the reward multiple, by construction.
+- Expectancy is the mean of that R list; the Kelly fraction follows from the win rate and the payoff ratio, both measured, never assumed.
+- The table also shows the growth rate at twice Kelly, which is where a winning edge still ends in ruin.
+
+## Monte Carlo Lab
+![Monte Carlo Lab on a TradingView chart](images/monte-carlo-chart.jpg)
+
+Your backtest is one ordering of your trades, not the only one it could have had. This shuffles the same closed trades into two hundred alternative histories and shows where the real backtest sits among them.
+
+- The same R-multiple trade list is shuffled with a seeded generator, so a re-run reproduces the identical set of histories.
+- Each shuffled history is walked once to record its ending and its worst drawdown, which is what the percentile rows report.
+- Only the ORDER changes: the trades, the win rate and the payoff are untouched, so anything that moves is path risk, not edge.
+
+## Martingale Lab
+![Martingale Lab on a TradingView chart](images/martingale-truth-chart.jpg)
+
+Doubling after a loss tested honestly. The same 209 trades are re-run under flat sizing, martingale and anti-martingale, across three hundred orderings, and the ruin rate is counted rather than argued about.
+
+- Each sizing rule consumes the same list of R multiples, so the only difference between the three columns is bet size after a loss.
+- A run counts as ruined when equity falls below the capital needed for the next required bet, which is what makes the ruin rate a measurement.
+- The panel also prints the stake a martingale would need after the longest losing streak in the data.
+
+## Volatility Regime Lab
+![Volatility Regime Lab on a TradingView chart](images/volatility-regimes-chart.jpg)
+
+ATR in dollars tells you nothing on its own. This ranks today's ATR against its own recent history, splits the chart into quiet, normal and wild regimes, and measures the forward return that followed each one.
+
+- ta.percentrank turns ATR into its own percentile, so the regime is relative to the instrument and the timeframe rather than to a dollar figure.
+- The forward return is attributed to the regime the bar was in and measured on closed data only, so nothing repaints.
+- Counts, means, best and worst are accumulated per regime in arrays, which is what the table reports.
+
+## Supply & Demand Zones
+![Supply & Demand Zones on a TradingView chart](images/supply-demand-zones-chart.jpg)
+
+What the paid zone indicators are actually doing, written out in arithmetic: a small-bodied base candle, then an impulse candle that runs away from it, leaves a zone behind.
+
+- A base candle is indecision stated as arithmetic: body divided by range, below a threshold you set.
+- A zone is born when an impulse candle leaves a base behind, which is the 'institutional order block' idea without the mystique.
+- Three slots per side are held in arrays as a ring buffer, so the script keeps state without drawing objects and works where drawings do not render.
+
+## Correlation Matrix & Effective Bets
+![Correlation Matrix & Effective Bets on a TradingView chart](images/correlation-matrix-chart.jpg)
+
+Six symbols, every pairwise correlation, and the number that matters: how many genuinely independent positions your basket actually contains.
+
+- Each pair's correlation is measured over the same lookback on closed bars, then rendered as a coloured table cell.
+- Effective bets is computed from the average correlation: it falls towards one as the basket becomes one trade wearing six tickers.
+- The symbols are inputs rather than a loop, because Pine requires a constant symbol in request.security.
+
+## Walk-Forward Lab
+![Walk-Forward Lab on a TradingView chart](images/walk-forward-chart.jpg)
+
+Overfitting shown rather than warned about: 154 parameter settings over 20,000 hourly candles, the in-sample best compared with an eight-fold walk-forward and with one fixed setting that was never re-optimised.
+
+- The grid is scored on data the selection never saw, which is the only comparison that means anything.
+- Eight folds re-select in-sample and then trade forward, so the equity curve is a record of decisions, not of hindsight.
+- The fixed 20/50 baseline is the control: if tuning cannot beat it out of sample, the tuning was noise.
+
+## Market Structure: BOS & CHoCH
+![Market Structure: BOS & CHoCH on a TradingView chart](images/market-structure-chart.jpg)
+
+Break of structure and change of character defined precisely enough to count, then scored: what price actually did in the twenty bars after each signal.
+
+- ta.pivothigh and ta.pivotlow only confirm a pivot after the lookahead bars have closed; that lag is real and the script does not hide it.
+- State is two most-recent confirmed swings plus the levels still unbroken, updated on every bar.
+- Every signal is scored on the forward move measured on closed bars, which is what turns a label into evidence.
+
+## Complete System: Regime + Edge + Risk
+![Complete System: Regime + Edge + Risk on a TradingView chart](images/complete-system-chart.jpg)
+
+The finale of the advanced arc: a regime gate that decides IF we trade, a moving-average edge that decides WHERE, and a Kelly fraction measured from the strategy's own closed trades that decides HOW BIG.
+
+- The regime gate ranks current ATR against its own last few hundred readings and trades only in the quiet band.
+- Kelly is measured from a rolling window of the strategy's own closed trades, then halved and capped, so sizing follows evidence rather than conviction.
+- The backtest is run by hand in Pine and shown on the chart, so every number in the dashboard is traceable to a trade you can point at.
 
 ## How to use
 1. In TradingView open the **Pine Editor**, create a new indicator (or strategy for strategy files).

@@ -1,0 +1,142 @@
+//@version=6
+indicator("Market Structure BOS CHoCH", overlay = true, max_bars_back = 1000)
+
+// 1. Settings
+// How many bars either side a swing must beat, before it counts as a pivot.
+piv     = input.int(5, "Bars either side of a swing point", minval = 2)
+// The forward window used later to score what price did after each signal.
+fwd     = input.int(20, "Score the move over N bars after a signal", minval = 1)
+// The background tint is optional, because some people hate coloured charts.
+shade   = input.bool(true, "Tint the background by structure state")
+// Draw the swing that has not been broken yet in a heavier line.
+showRef = input.bool(true, "Highlight the swing that is still unbroken")
+
+// 2. The swing points. ta.pivothigh only returns a value once piv more bars
+// have printed AFTER the candidate bar, so every pivot is confirmed piv bars
+// late. That lag is real, no indicator removes it, and you will see it.
+// Both calls sit at the top level so they run on every single bar.
+ph = ta.pivothigh(high, piv, piv)
+pl = ta.pivotlow(low, piv, piv)
+
+// 3. State. lastH and lastL are the most recent confirmed swings, kept so we
+// can draw them. refH and refL are the same two levels used as break targets,
+// and each is set to na the moment price takes it, so one swing fires once.
+var float lastH = na
+var float lastL = na
+var float refH  = na
+var float refL  = na
+// Minus one is bearish, zero is undefined, plus one is bullish.
+var int   state = 0
+// Refresh both holders whenever a new pivot confirms.
+if not na(ph)
+    lastH := ph
+    refH  := ph
+if not na(pl)
+    lastL := pl
+    refL  := pl
+
+// 4. A break is a CLOSE beyond the last swing, not a wick through it.
+brokeUp = not na(refH) and close > refH
+brokeDn = not na(refL) and close < refL
+// BOS continues the state we are already in, CHoCH is the first break the
+// other way. An undefined market has no character yet, so its first break
+// is recorded as a BOS rather than as a change of character.
+bosUp   = brokeUp and state >= 0
+chUp    = brokeUp and state < 0
+bosDn   = brokeDn and state <= 0
+chDn    = brokeDn and state > 0
+// Consume the level and flip the machine. One wild bar can break both sides,
+// and when it does the downward break is the one that sets the state.
+if brokeUp
+    refH  := na
+    state := 1
+if brokeDn
+    refL  := na
+    state := -1
+
+// 5. The structure levels, as stepped plots. This is the whole drawing, and
+// it needs no line objects at all: a stepped series IS a horizontal level
+// that only moves when the structure itself moves.
+plot(lastH, "Last swing high", color.new(color.red, 40),
+  style = plot.style_stepline)
+plot(lastL, "Last swing low", color.new(color.teal, 40),
+  style = plot.style_stepline)
+// The unbroken level, heavier, and na as soon as it has been taken.
+plot(showRef ? refH : na, "Unbroken high", color.red, 2, plot.style_stepline)
+plot(showRef ? refL : na, "Unbroken low", color.teal, 2, plot.style_stepline)
+
+// 6. Markers. BOS is a small triangle pointing the way of the break, CHoCH
+// is a letter, so at a glance the two can never be mistaken for each other.
+plotshape(bosUp, "BOS up", shape.triangleup, location.belowbar,
+  color.teal, size = size.tiny)
+plotshape(bosDn, "BOS down", shape.triangledown, location.abovebar,
+  color.red, size = size.tiny)
+plotchar(chUp, "CHoCH up", "C", location.belowbar, color.lime,
+  size = size.small)
+plotchar(chDn, "CHoCH down", "C", location.abovebar, color.orange,
+  size = size.small)
+// The background simply says which state the machine is in right now.
+stCol = state == 1 ? color.teal : state == -1 ? color.red : color.gray
+bgcolor(shade ? color.new(stCol, 90) : na, title = "Structure state")
+
+// 7. What actually happened next. On every bar we look at the bar that is
+// now fwd bars old, and if a signal fired there we credit the move since
+// then to that signal. Nothing ever looks forward, so nothing repaints.
+past    = close[fwd]
+moveRaw = not na(past) and past > 0 ? (close - past) / past * 100 : na
+var int   nBos    = 0
+var float sBos    = 0.0
+var int   nCh     = 0
+var float sCh     = 0.0
+var int   cBos    = 0
+var int   cCh     = 0
+var int   lastEvt = na
+// A move counts as correct when it goes the way the break pointed, so a
+// downward break is scored with the sign of the move flipped.
+if not na(moveRaw)
+    if bosUp[fwd] or bosDn[fwd]
+        nBos += 1
+        sBos += bosUp[fwd] ? moveRaw : -moveRaw
+    if chUp[fwd] or chDn[fwd]
+        nCh += 1
+        sCh += chUp[fwd] ? moveRaw : -moveRaw
+// Lifetime counts of the signals themselves, and when the last one fired.
+if bosUp or bosDn
+    cBos    += 1
+    lastEvt := bar_index
+if chUp or chDn
+    cCh     += 1
+    lastEvt := bar_index
+
+// 8. One helper that writes a label and a value into the scoreboard.
+var table t = table.new(position.top_right, 2, 7, border_width = 1)
+put(r, k, v, bg) =>
+    table.cell(t, 0, r, k, text_color = color.white, text_size = size.normal,
+      bgcolor = bg)
+    table.cell(t, 1, r, v, text_color = color.white, text_size = size.normal,
+      bgcolor = color.new(color.gray, 25))
+
+// 9. The report, including the two rows a premium indicator never shows you.
+if barstate.islast
+    name  = state == 1 ? "BULLISH" : state == -1 ? "BEARISH" : "UNDEFINED"
+    since = na(lastEvt) ? "-" : str.tostring(bar_index - lastEvt)
+    aBos  = nBos > 0 ? sBos / nBos : na
+    aCh   = nCh > 0 ? sCh / nCh : na
+    put(0, "STRUCTURE", name, color.new(stCol, 20))
+    put(1, "BOS count", str.tostring(cBos), color.new(color.blue, 20))
+    put(2, "CHoCH count", str.tostring(cCh), color.new(color.blue, 20))
+    put(3, "bars since last event", since, color.new(color.blue, 20))
+    put(4, "avg " + str.tostring(fwd) + "-bar move after BOS",
+      na(aBos) ? "no samples" : str.tostring(aBos, "#.00") + "%",
+      color.new(color.blue, 20))
+    put(5, "avg " + str.tostring(fwd) + "-bar move after CHoCH",
+      na(aCh) ? "no samples" : str.tostring(aCh, "#.00") + "%",
+      color.new(color.blue, 20))
+    put(6, "samples scored", str.tostring(nBos) + " BOS / " +
+      str.tostring(nCh) + " CHoCH", color.new(color.blue, 20))
+
+// 10. Alerts, on the two events people actually want their phone to shout.
+alertcondition(chUp or chDn, "Change of character",
+  "{{ticker}} structure changed character")
+alertcondition(bosUp or bosDn, "Break of structure",
+  "{{ticker}} break of structure")

@@ -1,0 +1,174 @@
+//@version=6
+indicator("Martingale Lab", overlay = true)
+
+// 1. Settings
+fastLen  = input.int(20, "Fast average")
+slowLen  = input.int(50, "Slow average")
+atrMult  = input.float(2.0, "Stop = ATR x", step = 0.5)
+rr       = input.float(2.0, "Target = R x", step = 0.5)
+baseRisk = input.float(1.0, "Base risk per trade (%)", step = 0.25) / 100
+maxSteps = input.int(6, "How many doublings a rule may take", minval = 1)
+sims     = input.int(300, "Alternative orderings to test", minval = 50, maxval = 800)
+seed     = input.int(11, "Random seed")
+
+// 2. The strategy. It is ordinary on purpose: the sizing rule is the experiment.
+// ta.* calls stay at the top level so they run on every bar.
+atr  = ta.atr(14)
+fast = ta.ema(close, fastLen)
+slow = ta.ema(close, slowLen)
+long = ta.crossover(fast, slow)
+plot(fast, "Fast", color.aqua)
+plot(slow, "Slow", color.orange)
+
+// 3. Record every trade as an R multiple, keeping the books by hand.
+// One open trade at a time: a loser is -1 R, a winner is +rr R, so the
+// history is a clean list of R values with no engine assumptions in it.
+var float entry = na
+var float stop  = na
+var float targ  = na
+var array<float> rs = array.new<float>()
+opened  = false
+hitStop = false
+hitTarg = false
+if na(entry)
+    if long and atr > 0
+        entry := close
+        stop  := close - atrMult * atr
+        targ  := close + atrMult * atr * rr
+        opened := true
+else
+    if low <= stop
+        array.push(rs, -1.0)
+        entry := na
+        hitStop := true
+    else if high >= targ
+        array.push(rs, rr)
+        entry := na
+        hitTarg := true
+plotshape(opened, "Entry", shape.triangleup, location.belowbar, color.teal)
+plotshape(hitTarg, "Target", shape.triangledown, location.abovebar, color.green)
+plotshape(hitStop, "Stop", shape.xcross, location.abovebar, color.red)
+
+// 4. Random numbers, so we can reorder the same trades (state in a one-slot array)
+var array<int> rngBox = array.new_int(1, seed)
+nextRand() =>
+    st = (1103515245 * array.get(rngBox, 0) + 12345) % 2147483648
+    array.set(rngBox, 0, st)
+    math.abs(st) / 2147483648.0
+
+// 5. THE EXPERIMENT. One function, three rules, identical trades.
+// rule 0 = flat, 1 = martingale (double after a loss),
+// 2 = anti-martingale (double after a win).
+// Returns where the account finished, its worst drawdown, and whether it was ruined.
+replay(src, rule) =>
+    eq   = 1.0
+    peak = 1.0
+    dd   = 0.0
+    mult = 1.0
+    ruined = false
+    for i = 0 to array.size(src) - 1
+        r = array.get(src, i)
+        stake = math.min(baseRisk * mult, 1.0)
+        eq := eq * (1 + stake * r)
+        peak := math.max(peak, eq)
+        dd := math.max(dd, 1 - eq / peak)
+        if eq <= 0.2 and not ruined
+            ruined := true
+        mult := rule == 0 ? 1.0 :
+          rule == 1 ? (r < 0 ? math.min(mult * 2, math.pow(2, maxSteps)) : 1.0) :
+          (r > 0 ? math.min(mult * 2, math.pow(2, maxSteps)) : 1.0)
+    [eq, dd, ruined]
+
+// 6. A shuffled copy of the trade list (Fisher-Yates)
+shuffled(src) =>
+    work = array.copy(src)
+    for i = array.size(work) - 1 to 1
+        j = math.floor(nextRand() * (i + 1))
+        tmp = array.get(work, i)
+        array.set(work, i, array.get(work, j))
+        array.set(work, j, tmp)
+    work
+
+// 7. The two tables
+var table t = table.new(position.bottom_left, 4, 5, border_width = 1)
+head(c, s) =>
+    table.cell(t, c, 0, s, text_color = color.white, text_size = size.normal,
+      bgcolor = color.new(color.blue, 20))
+var table h = table.new(position.middle_right, 3, 5, border_width = 1)
+blocks(v, pk) =>
+    w = int(math.round(22.0 * v / math.max(pk, 0.0001)))
+    s = ""
+    // a Pine for-loop with a start above its end counts DOWNWARDS,
+    // so an empty bin would print two blocks instead of none
+    if w > 0
+        for i = 1 to w
+            s += "█"
+    s
+
+// 8. Run all three rules on the real order, then on hundreds of reorderings
+if barstate.islast and array.size(rs) > 20
+    n = array.size(rs)
+    // the longest losing streak in the real history: this is what kills a martingale
+    streak = 0
+    longest = 0
+    for i = 0 to n - 1
+        streak := array.get(rs, i) < 0 ? streak + 1 : 0
+        longest := math.max(longest, streak)
+    ruin = array.new_float(3, 0.0)
+    for s = 0 to sims - 1
+        order = shuffled(rs)
+        for rule = 0 to 2
+            [_e, _d, wiped] = replay(order, rule)
+            if wiped
+                array.set(ruin, rule, array.get(ruin, rule) + 1)
+
+    // 9. The comparison table: same trades, three rules
+    head(0, "SAME " + str.tostring(n) + " TRADES")
+    head(1, "ends at")
+    head(2, "worst drawdown")
+    head(3, "ruined in " + str.tostring(sims) + " orders")
+    names = array.from("flat size", "martingale", "anti-martingale")
+    for rule = 0 to 2
+        [e, d, _w] = replay(rs, rule)
+        pctRuin = 100.0 * array.get(ruin, rule) / sims
+        table.cell(t, 0, rule + 1, array.get(names, rule), text_color = color.white,
+          bgcolor = color.new(color.gray, 20), text_halign = text.align_left,
+          text_size = size.normal)
+        table.cell(t, 1, rule + 1, str.tostring(e, "#.00") + "x",
+          text_color = color.white, text_size = size.normal,
+          bgcolor = e < 1 ? color.new(color.red, 25) : color.new(color.teal, 25))
+        table.cell(t, 2, rule + 1, str.tostring(100 * d, "#.0") + "%",
+          text_color = color.white, text_size = size.normal,
+          bgcolor = d > 0.5 ? color.new(color.red, 25) : color.new(color.gray, 25))
+        table.cell(t, 3, rule + 1, str.tostring(pctRuin, "#.0") + "%",
+          text_color = color.white, text_size = size.normal,
+          bgcolor = pctRuin > 0 ? color.new(color.red, 20) :
+            color.new(color.green, 30))
+    table.cell(t, 0, 4, "longest losing streak", text_color = color.white,
+      bgcolor = color.new(color.gray, 20), text_halign = text.align_left)
+    table.cell(t, 1, 4, str.tostring(longest) + " in a row",
+      text_color = color.white,
+      bgcolor = color.new(color.orange, 25))
+    table.cell(t, 2, 4, "a martingale needs", text_color = color.white,
+      bgcolor = color.new(color.gray, 20))
+    table.cell(t, 3, 4, str.tostring(math.pow(2, longest - 1), "#") + "x stake",
+      text_color = color.white, bgcolor = color.new(color.red, 20))
+
+    // 10. Risk of ruin, drawn as a bar so the difference is impossible to miss
+    table.cell(h, 0, 0, "rule", text_color = color.white, text_size = size.small,
+      bgcolor = color.new(color.blue, 20))
+    table.cell(h, 1, 0, "RISK OF RUIN", text_color = color.white,
+      text_size = size.small,
+      bgcolor = color.new(color.blue, 20))
+    table.cell(h, 2, 0, "", bgcolor = color.new(color.blue, 20))
+    for rule = 0 to 2
+        p = 100.0 * array.get(ruin, rule) / sims
+        table.cell(h, 0, rule + 1, array.get(names, rule), text_color = color.white,
+          bgcolor = color.new(color.gray, 30), text_size = size.tiny,
+          text_halign = text.align_left)
+        table.cell(h, 1, rule + 1, blocks(p, 100), text_color = color.red,
+          bgcolor = color.new(color.black, 0), text_size = size.tiny,
+          text_halign = text.align_left)
+        table.cell(h, 2, rule + 1, str.tostring(p, "#.0") + "%",
+          text_color = color.white,
+          bgcolor = color.new(color.black, 0), text_size = size.tiny)
