@@ -1,0 +1,26 @@
+//@version=6
+indicator("Paste Check", overlay = true)
+
+fastLen = input.int(9, "Fast EMA")
+slowLen = input.int(21, "Slow EMA")
+
+fast = ta.ema(close, fastLen)
+slow = ta.ema(close, slowLen)
+
+plot(fast, "Fast", color = color.teal, linewidth = 2)
+plot(slow, "Slow", color = color.orange, linewidth = 2)
+
+bullCross = ta.crossover(fast, slow)
+bearCross = ta.crossunder(fast, slow)
+
+var int trend = 0
+if bullCross
+    trend := 1
+else if bearCross
+    trend := -1
+
+bullBg = color.new(color.green, 88)
+bearBg = color.new(color.red, 88)
+bgcolor(trend == 1 ? bullBg : trend == -1 ? bearBg : na)
+plotshape(bullCross, "Buy", shape.triangleup, location.belowbar, color.green)
+plotshape(bearCross, "Sell", shape.triangledown, location.abovebar, color.red)
