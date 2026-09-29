@@ -1,0 +1,64 @@
+//@version=6
+// Signal Forge, part 1: the core engine. By Jayadev Rana.
+indicator("Signal Forge", overlay = true)
+
+// 1. Inputs: how far the trail sits, and the trend baseline
+atrLen  = input.int(10, "ATR length", minval = 1)
+atrMult = input.float(3.0, "ATR multiplier", minval = 0.5, step = 0.1)
+emaLen  = input.int(200, "Trend EMA length", minval = 1)
+useEma  = input.bool(true, "Only signal with the EMA trend")
+bullCol = input.color(#26a69a, "Bull colour")
+bearCol = input.color(#ef5350, "Bear colour")
+
+// 2. Volatility and trend
+atr = ta.atr(atrLen)
+ema = ta.ema(close, emaLen)
+
+// 3. The trail: it only ever moves in the trend's favour
+longStop  = close - atrMult * atr
+shortStop = close + atrMult * atr
+var float trail = na
+var int   dir   = 1
+if na(trail)
+    trail := longStop
+else if dir == 1
+    trail := math.max(trail, longStop)
+    if close < trail
+        dir   := -1
+        trail := shortStop
+else
+    trail := math.min(trail, shortStop)
+    if close > trail
+        dir   := 1
+        trail := longStop
+
+// 4. Draw the trail by direction, and shade it to price
+upLine = dir == 1 ? trail : na
+dnLine = dir == -1 ? trail : na
+pMid = plot(hl2, "Mid", display = display.none)
+pUp  = plot(upLine, "Bull trail", bullCol, 2, plot.style_linebr)
+pDn  = plot(dnLine, "Bear trail", bearCol, 2, plot.style_linebr)
+fill(pMid, pUp, color.new(bullCol, 85), "Bull zone")
+fill(pMid, pDn, color.new(bearCol, 85), "Bear zone")
+plot(ema, "Trend EMA", color.orange, 2)
+
+// 5. Candles: coloured when trail and EMA agree, grey when not
+bullOk = dir == 1 and (not useEma or close > ema)
+bearOk = dir == -1 and (not useEma or close < ema)
+barcolor(bullOk ? bullCol : bearOk ? bearCol : color.gray)
+
+// 6. Raw signals: a flip, with the trend, on a CLOSED candle only
+flipUp   = dir == 1 and dir[1] == -1
+flipDown = dir == -1 and dir[1] == 1
+rawBuy   = flipUp and bullOk and barstate.isconfirmed
+rawSell  = flipDown and bearOk and barstate.isconfirmed
+
+// 7. Markers and alerts. For now, buy is simply the raw signal
+buy  = rawBuy
+sell = rawSell
+plotshape(buy, "BUY", shape.labelup, location.belowbar, bullCol,
+  text = "BUY", textcolor = color.white, size = size.small)
+plotshape(sell, "SELL", shape.labeldown, location.abovebar, bearCol,
+  text = "SELL", textcolor = color.white, size = size.small)
+alertcondition(buy, "Signal Forge BUY", "BUY {{ticker}} at {{close}}")
+alertcondition(sell, "Signal Forge SELL", "SELL {{ticker}} at {{close}}")

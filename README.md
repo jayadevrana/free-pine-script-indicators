@@ -31,7 +31,8 @@ Every script compiles cleanly in Pine Script v6; signal logic is non-repainting.
 | **Walk-Forward Lab** | Indicator (Overlay) | Overfitting shown rather than warned about: 154 parameter settings over 20,000 hourly candles, the in-sample best compared with an eight-fold walk-forward and with one fixed setting that was never re-optimised. | [scripts/walk-forward.pine.txt](scripts/walk-forward.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/walk-forward/) | [▶ Watch](https://youtu.be/uLcCai8XoC0) |
 | **Market Structure: BOS & CHoCH** | Indicator (Overlay) | Break of structure and change of character defined precisely enough to count, then scored: what price actually did in the twenty bars after each signal. | [scripts/market-structure.pine.txt](scripts/market-structure.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/market-structure/) | [▶ Watch](https://youtu.be/a0Pej1hrIzk) |
 | **Complete System: Regime + Edge + Risk** | Indicator (Overlay) | The finale of the advanced arc: a regime gate that decides IF we trade, a moving-average edge that decides WHERE, and a Kelly fraction measured from the strategy's own closed trades that decides HOW BIG. | [scripts/complete-system.pine.txt](scripts/complete-system.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/complete-system/) | [▶ Watch](https://youtu.be/_G20LmPH_H0) |
-| **Paste Check (EMA Cross Starter)** | Indicator (Overlay) | The clean script from the beginner guide on adding any Pine Script to TradingView: paste it with Ctrl+A then Ctrl+V over a new indicator, press Add to chart, and it should compile with no red and no yellow. If it does not, the video walks through the 15 paste problems that break it. | [scripts/paste-check.pine.txt](scripts/paste-check.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/paste-check/) | [▶ Watch](https://youtu.be/c3eiflZ2vYk) |
+| **Paste Check (EMA Cross Starter)** | Indicator (Overlay) | The clean script from the beginner guide on adding any Pine Script to TradingView: paste it with Ctrl+A then Ctrl+V over a new indicator, press Add to chart, and it should compile with no red and no yellow. If it does not, the video walks through the 15 paste problems that break it. | [scripts/paste-check.pine.txt](scripts/paste-check.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/paste-check/) | [▶ Watch](https://youtu.be/-u27JFCehQA) |
+| **Signal Forge, Part 1 (Core Buy/Sell Engine)** | Indicator (Overlay) | Part 1 of the Signal Forge series: a buy and sell indicator written from a blank editor. An ATR trailing line decides the trend, a 200 EMA referees it, and BUY or SELL only prints on a closed candle, so a signal can never appear and then vanish. | [scripts/signal-forge-part-1.pine.txt](scripts/signal-forge-part-1.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/signal-forge-part-1/) | [▶ Watch](https://youtu.be/WGEmFM8QiQ8) |
 
 ## EMA Trend Signals
 ![EMA Trend Signals on a TradingView chart](images/ema-signals-chart.jpg)
@@ -248,6 +249,15 @@ The clean script from the beginner guide on adding any Pine Script to TradingVie
 - Two EMAs (9 and 21 by default) are plotted, and ta.crossover / ta.crossunder mark where they cross.
 - A var trend variable remembers the direction of the last cross, and bgcolor shades the chart green or red from it.
 - It is deliberately small and uses an if block, strings and several function calls, so every common paste error shows up in it.
+
+## Signal Forge, Part 1 (Core Buy/Sell Engine)
+![Signal Forge, Part 1 (Core Buy/Sell Engine) on a TradingView chart](images/signal-forge-part-1-chart.jpg)
+
+Part 1 of the Signal Forge series: a buy and sell indicator written from a blank editor. An ATR trailing line decides the trend, a 200 EMA referees it, and BUY or SELL only prints on a closed candle, so a signal can never appear and then vanish.
+
+- An ATR trailing stop (length 10, multiplier 3) only ratchets in the trend's direction and flips when a candle closes through it.
+- A 200 EMA acts as referee: a flip only becomes a signal when price is on the same side of the EMA, otherwise the candle is painted grey.
+- Every signal is gated on barstate.isconfirmed, so BUY and SELL labels and alerts only fire on closed candles.
 
 ## How to use
 1. In TradingView open the **Pine Editor**, create a new indicator (or strategy for strategy files).
