@@ -33,6 +33,14 @@ Every script compiles cleanly in Pine Script v6; signal logic is non-repainting.
 | **Complete System: Regime + Edge + Risk** | Indicator (Overlay) | The finale of the advanced arc: a regime gate that decides IF we trade, a moving-average edge that decides WHERE, and a Kelly fraction measured from the strategy's own closed trades that decides HOW BIG. | [scripts/complete-system.pine.txt](scripts/complete-system.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/complete-system/) | [▶ Watch](https://youtu.be/_G20LmPH_H0) |
 | **Paste Check (EMA Cross Starter)** | Indicator (Overlay) | The clean script from the beginner guide on adding any Pine Script to TradingView: paste it with Ctrl+A then Ctrl+V over a new indicator, press Add to chart, and it should compile with no red and no yellow. If it does not, the video walks through the 15 paste problems that break it. | [scripts/paste-check.pine.txt](scripts/paste-check.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/paste-check/) | [▶ Watch](https://youtu.be/-u27JFCehQA) |
 | **Signal Forge, Part 1 (Core Buy/Sell Engine)** | Indicator (Overlay) | Part 1 of the Signal Forge series: a buy and sell indicator written from a blank editor. An ATR trailing line decides the trend, a 200 EMA referees it, and BUY or SELL only prints on a closed candle, so a signal can never appear and then vanish. | [scripts/signal-forge-part-1.pine.txt](scripts/signal-forge-part-1.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/signal-forge-part-1/) | [▶ Watch](https://youtu.be/WGEmFM8QiQ8) |
+| **Signal Forge, Part 2 (Fake Signal Filters)** | Indicator (Overlay) | Part 2 of the Signal Forge series adds three filters that kill fake signals: a chop filter built on ADX, a volume filter, and a higher timeframe trend filter that cannot repaint. A scoreboard counts how many raw signals each filter removed. | [scripts/signal-forge-part-2.pine.txt](scripts/signal-forge-part-2.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/signal-forge-part-2/) | [▶ Watch](https://youtu.be/44XR9DX0JoM) |
+| **Signal Forge, Part 3 (Stop, Targets, Dashboard)** | Indicator (Overlay) | The finished Signal Forge: every filtered signal gets an ATR stop and three take profit levels drawn on the chart, a trade tracker counts on history how many signals reached each target or were stopped first, and one JSON alert fires on closed candles for bots and webhooks. | [scripts/signal-forge-part-3.pine.txt](scripts/signal-forge-part-3.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/signal-forge-part-3/) | [▶ Watch](https://youtu.be/-N8Jlk5ST0o) |
+| **Session Stats (Enums, Methods and Maps)** | Indicator (Overlay) | Lesson 25 of the Pine Script course. An enum of trading sessions, a user-defined type with methods, and a map keyed by the enum measure which session makes gold's high and low of the day, with the average range of each session. | [scripts/enum-method-map.pine.txt](scripts/enum-method-map.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/enum-method-map/) | [▶ Watch](https://youtu.be/MlxheBjKtWs) |
+| **Intrabar Delta (request.security_lower_tf)** | Indicator (Separate pane) | Lesson 26 of the Pine Script course. request.security_lower_tf returns the 1 minute candles inside every chart candle as arrays, and the script uses them to estimate buying and selling volume, plot delta as columns and keep a cumulative delta that resets each day. | [scripts/intrabar-delta.pine.txt](scripts/intrabar-delta.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/intrabar-delta/) | [▶ Watch](https://youtu.be/7-VgEb_1JLk) |
+| **DIY Volume Profile (POC and Value Area)** | Indicator (Overlay) | Lesson 27 of the Pine Script course. A volume profile built from scratch with arrays: every candle's volume is spread across the price rows it covers, the point of control is the busiest row, and the 70% value area grows outwards from it. The histogram is drawn as a table of block characters. | [scripts/volume-profile.pine.txt](scripts/volume-profile.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/volume-profile/) | [▶ Watch](https://youtu.be/UJyNK8BQ5_4) |
+| **Kalman vs EMA** | Indicator (Overlay) | Lesson 28 of the Pine Script course. A Kalman filter written with var state: the 1-D version with fixed noise settles into an EMA, and the price plus velocity version is compared against an EMA on the same chart with a table that measures distance to price and slope flips. | [scripts/kalman-filter.pine.txt](scripts/kalman-filter.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/kalman-filter/) | [▶ Watch](https://youtu.be/lU6jntuX2kI) |
+| **Divergence Engine (RSI Divergences)** | Indicator (Separate pane) | Lesson 29 of the Pine Script course. RSI pivots are stored as a user-defined type in arrays and compared with the price at the same candle to detect regular and hidden bullish and bearish divergences, marked where they are confirmed rather than moved back in time. | [scripts/divergence-engine.pine.txt](scripts/divergence-engine.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/divergence-engine/) | [▶ Watch](https://youtu.be/8mJslSwyyRE) |
+| **kNN Classifier (Machine Learning in Pine)** | Indicator (Overlay) | Lesson 30 of the Pine Script course. A k nearest neighbours classifier in Pine: three scaled features, labels that only become known after the forecast horizon so nothing looks ahead, and a table that scores every prediction against an always-up baseline on the same bars. | [scripts/knn-classifier.pine.txt](scripts/knn-classifier.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/knn-classifier/) | [▶ Watch](https://youtu.be/N0sIi6laROM) |
 
 ## EMA Trend Signals
 ![EMA Trend Signals on a TradingView chart](images/ema-signals-chart.jpg)
@@ -258,6 +266,78 @@ Part 1 of the Signal Forge series: a buy and sell indicator written from a blank
 - An ATR trailing stop (length 10, multiplier 3) only ratchets in the trend's direction and flips when a candle closes through it.
 - A 200 EMA acts as referee: a flip only becomes a signal when price is on the same side of the EMA, otherwise the candle is painted grey.
 - Every signal is gated on barstate.isconfirmed, so BUY and SELL labels and alerts only fire on closed candles.
+
+## Signal Forge, Part 2 (Fake Signal Filters)
+![Signal Forge, Part 2 (Fake Signal Filters) on a TradingView chart](images/signal-forge-part-2-chart.jpg)
+
+Part 2 of the Signal Forge series adds three filters that kill fake signals: a chop filter built on ADX, a volume filter, and a higher timeframe trend filter that cannot repaint. A scoreboard counts how many raw signals each filter removed.
+
+- Chop filter: a signal needs ADX above a minimum (14 and 20 by default), so sideways markets stay quiet.
+- Volume filter: the signal candle's volume must be at least a multiple of its 20 bar average.
+- Higher timeframe filter: request.security reads the 4 hour close and EMA with the [1] offset, so it only uses closed higher timeframe candles; every veto is counted on the scoreboard.
+
+## Signal Forge, Part 3 (Stop, Targets, Dashboard)
+![Signal Forge, Part 3 (Stop, Targets, Dashboard) on a TradingView chart](images/signal-forge-part-3-chart.jpg)
+
+The finished Signal Forge: every filtered signal gets an ATR stop and three take profit levels drawn on the chart, a trade tracker counts on history how many signals reached each target or were stopped first, and one JSON alert fires on closed candles for bots and webhooks.
+
+- On each kept signal the stop goes 1.5 ATR away and targets 1, 2 and 3 sit at 1R, 2R and 3R, plotted only while the trade is open.
+- A var state machine walks every candle, records which target was reached or whether the stop came first, and moves the stop to entry after target 1.
+- The dashboard shows position, signal counts and outcomes, and alert() sends one JSON message per closed candle with the symbol, side, entry, stop and targets.
+
+## Session Stats (Enums, Methods and Maps)
+![Session Stats (Enums, Methods and Maps) on a TradingView chart](images/enum-method-map-chart.jpg)
+
+Lesson 25 of the Pine Script course. An enum of trading sessions, a user-defined type with methods, and a map keyed by the enum measure which session makes gold's high and low of the day, with the average range of each session.
+
+- enum Session lists Asia, London and New York, and input.enum turns it into a dropdown for the highlighted session.
+- A SessionStats type carries days, range total and high/low counts, with methods update() and avgRange().
+- A map from Session to SessionStats collects every finished trading day, so each percentage column adds up to about 100 as a built-in check.
+
+## Intrabar Delta (request.security_lower_tf)
+![Intrabar Delta (request.security_lower_tf) on a TradingView chart](images/intrabar-delta-chart.jpg)
+
+Lesson 26 of the Pine Script course. request.security_lower_tf returns the 1 minute candles inside every chart candle as arrays, and the script uses them to estimate buying and selling volume, plot delta as columns and keep a cumulative delta that resets each day.
+
+- One tuple call to request.security_lower_tf returns arrays of 1 minute opens, closes and volumes for each chart candle.
+- A guarded loop counts up-closing minutes as buying and down-closing minutes as selling, and splits flat minutes half and half; with no intrabars delta is na, not zero.
+- It is an estimate from one exchange's volume, not real order flow, and older candles return empty arrays once the intrabar history limit is reached.
+
+## DIY Volume Profile (POC and Value Area)
+![DIY Volume Profile (POC and Value Area) on a TradingView chart](images/volume-profile-chart.jpg)
+
+Lesson 27 of the Pine Script course. A volume profile built from scratch with arrays: every candle's volume is spread across the price rows it covers, the point of control is the busiest row, and the 70% value area grows outwards from it. The histogram is drawn as a table of block characters.
+
+- Each candle's volume is split across the price rows its high to low range overlaps, in proportion to the overlap.
+- The POC is the row with the most volume; the value area adds whichever neighbouring row is larger until it holds 70% of the volume.
+- The lines are rolling (a plot cannot be redrawn into the past), and the histogram table is built only on the last bar.
+
+## Kalman vs EMA
+![Kalman vs EMA on a TradingView chart](images/kalman-filter-chart.jpg)
+
+Lesson 28 of the Pine Script course. A Kalman filter written with var state: the 1-D version with fixed noise settles into an EMA, and the price plus velocity version is compared against an EMA on the same chart with a table that measures distance to price and slope flips.
+
+- Predict then update: the gain K = P / (P + R) decides how far the estimate moves toward each new close.
+- With fixed Q and R the 1-D gain settles to a constant, which makes it an EMA; the table shows the settled gain next to the EMA's alpha.
+- The price plus velocity version tracks the slope as well, and the table measures its lag and whipsaws against the EMA after the first 200 bars.
+
+## Divergence Engine (RSI Divergences)
+![Divergence Engine (RSI Divergences) on a TradingView chart](images/divergence-engine-chart.jpg)
+
+Lesson 29 of the Pine Script course. RSI pivots are stored as a user-defined type in arrays and compared with the price at the same candle to detect regular and hidden bullish and bearish divergences, marked where they are confirmed rather than moved back in time.
+
+- ta.pivothigh and ta.pivotlow on the RSI find turning points, and the price at that same candle is read with the history operator.
+- Each new pivot is compared with the nearest earlier pivot between the minimum and maximum gap to classify regular or hidden divergence.
+- Markers appear on the confirmation bar, 5 bars after the pivot, instead of being shifted back, so the chart shows what could actually have been seen.
+
+## kNN Classifier (Machine Learning in Pine)
+![kNN Classifier (Machine Learning in Pine) on a TradingView chart](images/knn-classifier-chart.jpg)
+
+Lesson 30 of the Pine Script course. A k nearest neighbours classifier in Pine: three scaled features, labels that only become known after the forecast horizon so nothing looks ahead, and a table that scores every prediction against an always-up baseline on the same bars.
+
+- Features: a rescaled RSI, the fast minus slow moving average gap in ATRs, and the candle range against the ATR, each clamped to between -1 and 1.
+- Each sample waits in a pending queue until its outcome is known, then joins a training set capped at 500, so no label ever uses future data.
+- The 9 nearest neighbours (Lorentzian or Euclidean distance) vote on the direction, and each prediction is scored only once its own outcome is known.
 
 ## How to use
 1. In TradingView open the **Pine Editor**, create a new indicator (or strategy for strategy files).

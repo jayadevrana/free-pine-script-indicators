@@ -1,0 +1,51 @@
+//@version=6
+indicator("Intrabar Delta", overlay = false)
+
+ltf = input.timeframe("1", "Intrabar timeframe")
+
+[o, c, v] = request.security_lower_tf(syminfo.tickerid, ltf,
+  [open, close, volume])
+
+n = array.size(c)
+float buyVol = 0.0
+float sellVol = 0.0
+
+if n > 0
+    for i = 0 to n - 1
+        vol = nz(array.get(v, i))
+        oi = array.get(o, i)
+        ci = array.get(c, i)
+        if ci > oi
+            buyVol += vol
+        else if ci < oi
+            sellVol += vol
+        else
+            buyVol += vol / 2
+            sellVol += vol / 2
+
+delta = n > 0 ? buyVol - sellVol : na
+deltaCol = delta >= 0 ? color.teal : color.red
+plot(delta, "Delta", deltaCol, style = plot.style_columns)
+hline(0, "Zero", color.gray)
+
+var float cvd = 0.0
+if timeframe.change("D")
+    cvd := 0.0
+if not na(delta)
+    cvd += delta
+plot(n > 0 ? cvd : na, "Cumulative delta", color.orange, 2)
+
+total = n > 0 ? array.sum(v) : na
+fmt(float x) => str.tostring(x, format.volume)
+var table panel = table.new(position.top_right, 2, 6,
+  bgcolor = color.new(color.black, 15), border_width = 1,
+  frame_width = 1, frame_color = color.gray)
+if barstate.islast
+    names = array.from("intrabars", "volume", "buy (est)",
+      "sell (est)", "delta", "buy share")
+    share = total > 0 ? str.tostring(100 * buyVol / total, "#") + "%" : "-"
+    vals = array.from(str.tostring(n), fmt(total), fmt(buyVol),
+      fmt(sellVol), fmt(delta), share)
+    for i = 0 to 5
+        table.cell(panel, 0, i, names.get(i), text_color = color.gray)
+        table.cell(panel, 1, i, vals.get(i), text_color = color.white)
