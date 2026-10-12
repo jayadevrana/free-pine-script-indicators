@@ -1,0 +1,77 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © JayadevRana
+//@version=6
+// Larry Williams — Volatility Breakout, as he describes it in "Long-Term Secrets to Short-Term Trading":
+// buy when price moves a fraction of yesterday's range away from the reference price, protect with a stop
+// sized by the same range, and get out fast ("first profitable opening").
+// TradingView cannot know tomorrow's open at tonight's close, so the reference is the CLOSE (a variant
+// Williams also uses); the exit is taken at the open after the first profitable close.
+strategy("Volatility Breakout (Larry Williams) [JR]", shorttitle = "LW Breakout", overlay = true,
+     initial_capital = 100000, default_qty_type = strategy.percent_of_equity, default_qty_value = 100,
+     commission_type = strategy.commission.percent, commission_value = 0.02, slippage = 2,
+     margin_long = 0, margin_short = 0, process_orders_on_close = false, pyramiding = 0)
+
+G1 = "1 · Breakout"
+kLong   = input.float(1.0, "Long: buy stop at close + k × yesterday's range", minval = 0.05, step = 0.05, group = G1)
+kShort  = input.float(0.6, "Short: sell stop at close − k × range", minval = 0.05, step = 0.05, group = G1)
+dirMode = input.string("Long only", "Direction", options = ["Long only", "Both", "Short only"], group = G1,
+     tooltip = "Williams traded stock indices mostly from the long side")
+G2 = "2 · Exit"
+stopK    = input.float(0.5, "Stop: entry − k × range (0 = no stop)", minval = 0, step = 0.05, group = G2)
+exitMode = input.string("Hold N days", "Exit", options = ["First profitable close", "Next open", "Hold N days"], group = G2)
+holdN    = input.int(3, "Max days in trade", minval = 1, maxval = 30, group = G2)
+G3 = "3 · Filters"
+trendOn  = input.bool(false, "Trend filter: close above close N days ago", group = G3)
+trendN   = input.int(20, "Trend lookback (days)", minval = 2, group = G3)
+rangeMin = input.float(0.0, "Skip if yesterday's range < % of price", minval = 0, step = 0.1, group = G3)
+G4 = "4 · Test window"
+fromT = input.time(timestamp("2000-01-01T00:00:00"), "Trade from", group = G4)
+toT   = input.time(timestamp("2100-01-01T00:00:00"), "Trade until", group = G4)
+showLv = input.bool(true, "Show trigger levels", group = G4)
+
+inWin   = time >= fromT and time <= toT
+rng     = high - low
+canLong = dirMode != "Short only"
+canShrt = dirMode != "Long only"
+trendUp = not trendOn or close > close[trendN]
+trendDn = not trendOn or close < close[trendN]
+rangeOK = rng >= close * rangeMin / 100
+longTrig  = close + kLong * rng
+shortTrig = close - kShort * rng
+flat = strategy.position_size == 0
+
+var float rngAtEntry = na
+var int   entryBar   = na
+if strategy.position_size != 0 and strategy.position_size[1] == 0
+    rngAtEntry := rng[1]
+    entryBar   := bar_index
+
+// orders placed at this close work during the next bar
+strategy.cancel_all()
+if flat and inWin and rangeOK
+    if canLong and trendUp
+        strategy.entry("LW L", strategy.long, stop = longTrig)
+    if canShrt and trendDn
+        strategy.entry("LW S", strategy.short, stop = shortTrig)
+
+if strategy.position_size > 0
+    ep = strategy.position_avg_price
+    if stopK > 0
+        strategy.exit("LW L stop", "LW L", stop = ep - stopK * rngAtEntry)
+    held = bar_index - entryBar + 1
+    if (exitMode == "First profitable close" and close > ep) or exitMode == "Next open" or held >= holdN
+        strategy.close("LW L", comment = "exit")
+if strategy.position_size < 0
+    ep = strategy.position_avg_price
+    if stopK > 0
+        strategy.exit("LW S stop", "LW S", stop = ep + stopK * rngAtEntry)
+    held = bar_index - entryBar + 1
+    if (exitMode == "First profitable close" and close < ep) or exitMode == "Next open" or held >= holdN
+        strategy.close("LW S", comment = "exit")
+if not inWin and not flat
+    strategy.close_all(comment = "window end")
+
+plot(showLv and flat and canLong ? longTrig : na, "Buy stop (next bar)", color.new(color.teal, 0), 1, plot.style_circles, offset = 1)
+plot(showLv and flat and canShrt ? shortTrig : na, "Sell stop (next bar)", color.new(color.red, 0), 1, plot.style_circles, offset = 1)
+plot(strategy.position_size > 0 and stopK > 0 ? strategy.position_avg_price - stopK * rngAtEntry : na, "Long stop", color.new(color.red, 0), 2, plot.style_linebr)
+plot(strategy.position_size < 0 and stopK > 0 ? strategy.position_avg_price + stopK * rngAtEntry : na, "Short stop", color.new(color.red, 0), 2, plot.style_linebr)

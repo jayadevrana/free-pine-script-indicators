@@ -1,0 +1,54 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © JayadevRana
+//@version=6
+// Larry Connors — the 2-period RSI strategy from "Short Term Trading Strategies That Work" (2008):
+// only buy when price is above its 200-day average; buy at the close when RSI(2) drops below 10;
+// sell at the close when price closes above its 5-day average. No stop in the original rules.
+strategy("RSI-2 (Larry Connors) [JR]", shorttitle = "Connors RSI-2", overlay = true,
+     initial_capital = 100000, default_qty_type = strategy.percent_of_equity, default_qty_value = 100,
+     commission_type = strategy.commission.percent, commission_value = 0.02, slippage = 2,
+     margin_long = 0, margin_short = 0, process_orders_on_close = true, pyramiding = 0)
+
+G1 = "1 · Entry"
+rsiLen   = input.int(2, "RSI length", minval = 2, group = G1)
+buyLvl   = input.float(10, "Buy when RSI below", minval = 1, step = 1, group = G1)
+trendLen = input.int(200, "Only long above the N-day average", minval = 20, group = G1)
+shortOn  = input.bool(false, "Also short: below average, RSI above 100 − level", group = G1)
+G2 = "2 · Exit"
+exitLen  = input.int(5, "Exit when close crosses the N-day average", minval = 2, group = G2)
+stopPct  = input.float(0.0, "Optional stop % (0 = none, as in the book)", minval = 0, step = 0.5, group = G2)
+maxHold  = input.int(0, "Optional max days (0 = none)", minval = 0, group = G2)
+G3 = "3 · Test window"
+fromT = input.time(timestamp("2000-01-01T00:00:00"), "Trade from", group = G3)
+toT   = input.time(timestamp("2100-01-01T00:00:00"), "Trade until", group = G3)
+showLv = input.bool(true, "Show averages", group = G3)
+
+inWin = time >= fromT and time <= toT
+r     = ta.rsi(close, rsiLen)
+trend = ta.sma(close, trendLen)
+exitM = ta.sma(close, exitLen)
+var int entryBar = na
+if strategy.position_size != 0 and strategy.position_size[1] == 0
+    entryBar := bar_index
+
+if strategy.position_size == 0 and inWin
+    if close > trend and r < buyLvl
+        strategy.entry("RSI2 L", strategy.long)
+    else if shortOn and close < trend and r > 100 - buyLvl
+        strategy.entry("RSI2 S", strategy.short)
+if strategy.position_size > 0
+    if close > exitM or (maxHold > 0 and bar_index - entryBar >= maxHold)
+        strategy.close("RSI2 L", comment = "exit")
+    if stopPct > 0
+        strategy.exit("RSI2 L stop", "RSI2 L", stop = strategy.position_avg_price * (1 - stopPct / 100))
+if strategy.position_size < 0
+    if close < exitM or (maxHold > 0 and bar_index - entryBar >= maxHold)
+        strategy.close("RSI2 S", comment = "exit")
+    if stopPct > 0
+        strategy.exit("RSI2 S stop", "RSI2 S", stop = strategy.position_avg_price * (1 + stopPct / 100))
+if not inWin and strategy.position_size != 0
+    strategy.close_all(comment = "window end")
+
+plot(showLv ? trend : na, "Trend average", color.new(color.blue, 0), 2)
+plot(showLv ? exitM : na, "Exit average", color.new(color.orange, 0), 1)
+plotshape(showLv and strategy.position_size == 0 and close > trend and r < buyLvl, "RSI(2) oversold above trend", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.tiny)

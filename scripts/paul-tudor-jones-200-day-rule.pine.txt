@@ -1,0 +1,47 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © JayadevRana
+//@version=6
+// Paul Tudor Jones — "my metric for everything I look at is the 200-day moving average of closing prices."
+// Be long while price is above its long average, step aside when it closes below. A band and a confirmation
+// count keep the rule from flipping on every small cross.
+// Default = 100 days: the optimised setting on Nifty 2000-2014 (minimum 40 trades), validated on 2015-2026; PTJ's own line is 200.
+strategy("200-Day Rule (Paul Tudor Jones) [JR]", shorttitle = "PTJ 200", overlay = true,
+     initial_capital = 100000, default_qty_type = strategy.percent_of_equity, default_qty_value = 100,
+     commission_type = strategy.commission.percent, commission_value = 0.02, slippage = 2,
+     margin_long = 0, margin_short = 0, process_orders_on_close = true, pyramiding = 0)
+
+G1 = "1 · The average"
+maLen   = input.int(100, "Average length (days)", minval = 10, group = G1)
+maType  = input.string("SMA", "Average type", options = ["SMA", "EMA"], group = G1)
+G2 = "2 · Whipsaw filter"
+bandPct = input.float(0.0, "Band around the average (%)", minval = 0, step = 0.5, group = G2, tooltip = "Buy above average + band, sell below average − band")
+confirm = input.int(1, "Closes needed beyond the line", minval = 1, maxval = 10, group = G2)
+shortOn = input.bool(false, "Also short below the average", group = G2)
+G3 = "3 · Test window"
+fromT = input.time(timestamp("2000-01-01T00:00:00"), "Trade from", group = G3)
+toT   = input.time(timestamp("2100-01-01T00:00:00"), "Trade until", group = G3)
+showLv = input.bool(true, "Show average and band", group = G3)
+
+inWin = time >= fromT and time <= toT
+ma    = maType == "EMA" ? ta.ema(close, maLen) : ta.sma(close, maLen)
+upper = ma * (1 + bandPct / 100)
+lower = ma * (1 - bandPct / 100)
+above = ta.barssince(close <= upper) >= confirm - 1 and close > upper
+below = ta.barssince(close >= lower) >= confirm - 1 and close < lower
+
+if inWin and not na(ma)
+    if above and strategy.position_size <= 0
+        strategy.entry("PTJ L", strategy.long)
+    if below and strategy.position_size > 0
+        strategy.close("PTJ L", comment = "below")
+    if shortOn and below and strategy.position_size >= 0
+        strategy.entry("PTJ S", strategy.short)
+    if shortOn and above and strategy.position_size < 0
+        strategy.close("PTJ S", comment = "above")
+if not inWin and strategy.position_size != 0
+    strategy.close_all(comment = "window end")
+
+plot(showLv ? ma : na, "Average", color.new(color.orange, 0), 2)
+plot(showLv and bandPct > 0 ? upper : na, "Upper band", color.new(color.teal, 40), 1)
+plot(showLv and bandPct > 0 ? lower : na, "Lower band", color.new(color.red, 40), 1)
+bgcolor(showLv and strategy.position_size > 0 ? color.new(color.teal, 92) : na, title = "In the market")

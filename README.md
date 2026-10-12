@@ -41,6 +41,12 @@ Every script compiles cleanly in Pine Script v6; signal logic is non-repainting.
 | **Kalman vs EMA** | Indicator (Overlay) | Lesson 28 of the Pine Script course. A Kalman filter written with var state: the 1-D version with fixed noise settles into an EMA, and the price plus velocity version is compared against an EMA on the same chart with a table that measures distance to price and slope flips. | [scripts/kalman-filter.pine.txt](scripts/kalman-filter.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/kalman-filter/) | [▶ Watch](https://youtu.be/lU6jntuX2kI) |
 | **Divergence Engine (RSI Divergences)** | Indicator (Separate pane) | Lesson 29 of the Pine Script course. RSI pivots are stored as a user-defined type in arrays and compared with the price at the same candle to detect regular and hidden bullish and bearish divergences, marked where they are confirmed rather than moved back in time. | [scripts/divergence-engine.pine.txt](scripts/divergence-engine.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/divergence-engine/) | [▶ Watch](https://youtu.be/8mJslSwyyRE) |
 | **kNN Classifier (Machine Learning in Pine)** | Indicator (Overlay) | Lesson 30 of the Pine Script course. A k nearest neighbours classifier in Pine: three scaled features, labels that only become known after the forecast horizon so nothing looks ahead, and a table that scores every prediction against an always-up baseline on the same bars. | [scripts/knn-classifier.pine.txt](scripts/knn-classifier.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/knn-classifier/) | [▶ Watch](https://youtu.be/N0sIi6laROM) |
+| **Booming Bulls Sniper (Liquidity Sweep Strategy)** | Strategy (Overlay) | The liquidity-sweep sniper setup Anish Singh Thakur of Booming Bulls teaches, coded as a Pine Script v6 strategy: price sweeps a key day level, a confirmation candle closes back inside, and the entry is a break of that candle. Tested honestly on gold 15m, Nifty and Bitcoin with commission and slippage. | [scripts/booming-bulls-sniper.pine.txt](scripts/booming-bulls-sniper.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/booming-bulls-sniper/) | [▶ Watch](https://youtu.be/N0URd7zWcZE) |
+| **Larry Williams Volatility Breakout (Optimised)** | Strategy (Overlay) | Larry Williams' volatility breakout as a Pine Script v6 strategy: buy when price runs above the close by a fraction of yesterday's range. Optimised on Nifty 2000-2018 only, then checked on 2019-2026: profit factor 1.57 over the full history and 1.40 on the unseen years. | [scripts/larry-williams-volatility-breakout.pine.txt](scripts/larry-williams-volatility-breakout.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/larry-williams-volatility-breakout/) | [▶ Watch](https://youtu.be/KxJ5f8lWWfY) |
+| **Turtle Trading Rules (Donchian Breakout, Optimised)** | Strategy (Overlay) | The Turtle rules of Richard Dennis and William Eckhardt as a Pine Script v6 strategy, with N-based position sizing and up to 4 units. On gold since 2006 the optimised setting (55/20 days, 1.5 N stop, long only) made +708% against +559% buy-and-hold with a 13% max drawdown. | [scripts/turtle-trading-rules.pine.txt](scripts/turtle-trading-rules.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/turtle-trading-rules/) | [▶ Watch](https://youtu.be/Q81ywGllmhg) |
+| **Linda Raschke Holy Grail (ADX Pullback)** | Strategy (Overlay) | Linda Raschke's Holy Grail setup as a Pine Script v6 strategy: a strong ADX trend, a pullback to the EMA, and a buy stop above the pullback bar. On Bank Nifty hourly the textbook version scored profit factor 1.74 in 2015-2020 and 0.63 after 2021. The setting here (ADX 35, EMA 10, trailing exit, long only) held 1.38 on those unseen years; it was chosen after seeing them, and the video says so. | [scripts/linda-raschke-holy-grail.pine.txt](scripts/linda-raschke-holy-grail.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/linda-raschke-holy-grail/) | [▶ Watch](https://youtu.be/sqxkyZabuzw) |
+| **Larry Connors RSI-2 (Mean Reversion)** | Strategy (Overlay) | Larry Connors' RSI-2 as a Pine Script v6 strategy: buy short-term panic in a long-term uptrend. On SPY since 1995: 254 trades, 75% winners, profit factor 2.53, max drawdown 16%. The optimiser's best setting scored 4.55 on 1995-2015 and 0.92 on the years it never saw; Connors' own setting scored 2.66 there and is the default. | [scripts/larry-connors-rsi-2.pine.txt](scripts/larry-connors-rsi-2.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/larry-connors-rsi-2/) | [▶ Watch](https://youtu.be/o68IqdNd-2k) |
+| **Paul Tudor Jones 200-Day Rule (Optimised)** | Strategy (Overlay) | Paul Tudor Jones' rule, be in above the long moving average and out below it, as a Pine Script v6 strategy. On the Nifty since 2000 the optimised 100-day average made +1,574% against +1,298% buy-and-hold with a 22% max drawdown, profit factor 3.01, and held 2.60 on the unseen years. | [scripts/paul-tudor-jones-200-day-rule.pine.txt](scripts/paul-tudor-jones-200-day-rule.pine.txt) · [page](https://jayadevrana.in/free-pine-script-indicators/paul-tudor-jones-200-day-rule/) | [▶ Watch](https://youtu.be/ZMDHrKk5zo8) |
 
 ## EMA Trend Signals
 ![EMA Trend Signals on a TradingView chart](images/ema-signals-chart.jpg)
@@ -338,6 +344,60 @@ Lesson 30 of the Pine Script course. A k nearest neighbours classifier in Pine: 
 - Features: a rescaled RSI, the fast minus slow moving average gap in ATRs, and the candle range against the ATR, each clamped to between -1 and 1.
 - Each sample waits in a pending queue until its outcome is known, then joins a training set capped at 500, so no label ever uses future data.
 - The 9 nearest neighbours (Lorentzian or Euclidean distance) vote on the direction, and each prediction is scored only once its own outcome is known.
+
+## Booming Bulls Sniper (Liquidity Sweep Strategy)
+![Booming Bulls Sniper (Liquidity Sweep Strategy) on a TradingView chart](images/booming-bulls-sniper-chart.jpg)
+
+The liquidity-sweep sniper setup Anish Singh Thakur of Booming Bulls teaches, coded as a Pine Script v6 strategy: price sweeps a key day level, a confirmation candle closes back inside, and the entry is a break of that candle. Tested honestly on gold 15m, Nifty and Bitcoin with commission and slippage.
+
+- Levels: previous-day high/low (strongest), optional previous-week, and the current-day high/low only after the day has travelled 70% of its daily ATR.
+- A sweep beyond a level must be followed within 8 bars by an opposite-colour confirmation candle; the entry is a break of that candle within 5 bars.
+- Stop beyond the sweep wick plus 0.25 ATR, target 2R, breakeven at 1R and a trailing stop from 1.5R; one trade per day by default.
+
+## Larry Williams Volatility Breakout (Optimised)
+![Larry Williams Volatility Breakout (Optimised) on a TradingView chart](images/larry-williams-volatility-breakout-chart.jpg)
+
+Larry Williams' volatility breakout as a Pine Script v6 strategy: buy when price runs above the close by a fraction of yesterday's range. Optimised on Nifty 2000-2018 only, then checked on 2019-2026: profit factor 1.57 over the full history and 1.40 on the unseen years.
+
+- Buy stop at the close plus k times yesterday's range (k = 1.0 after optimisation).
+- Stop at entry minus 0.5 times the range; exit after holding 3 days.
+- Trade from / Trade until inputs let you repeat the in-sample and out-of-sample test yourself.
+
+## Turtle Trading Rules (Donchian Breakout, Optimised)
+![Turtle Trading Rules (Donchian Breakout, Optimised) on a TradingView chart](images/turtle-trading-rules-chart.jpg)
+
+The Turtle rules of Richard Dennis and William Eckhardt as a Pine Script v6 strategy, with N-based position sizing and up to 4 units. On gold since 2006 the optimised setting (55/20 days, 1.5 N stop, long only) made +708% against +559% buy-and-hold with a 13% max drawdown.
+
+- Enter on a breakout of the last 55 days; exit on an opposite breakout of the last 20 days.
+- One unit risks 1% of equity per 1 N (20-day ATR); add a unit every 0.5 N, up to 4 units.
+- Stop 1.5 N behind the last unit; a warm-up guard stops trading before the channels exist.
+
+## Linda Raschke Holy Grail (ADX Pullback)
+![Linda Raschke Holy Grail (ADX Pullback) on a TradingView chart](images/linda-raschke-holy-grail-chart.jpg)
+
+Linda Raschke's Holy Grail setup as a Pine Script v6 strategy: a strong ADX trend, a pullback to the EMA, and a buy stop above the pullback bar. On Bank Nifty hourly the textbook version scored profit factor 1.74 in 2015-2020 and 0.63 after 2021. The setting here (ADX 35, EMA 10, trailing exit, long only) held 1.38 on those unseen years; it was chosen after seeing them, and the video says so.
+
+- ADX above 35 marks a strong trend; the setup is a pullback that touches the 10 EMA.
+- A buy stop above the pullback bar stays live for 3 bars.
+- The trade trails the EMA; Trade from / until inputs reproduce the 2015-2020 vs 2021-today split.
+
+## Larry Connors RSI-2 (Mean Reversion)
+![Larry Connors RSI-2 (Mean Reversion) on a TradingView chart](images/larry-connors-rsi-2-chart.jpg)
+
+Larry Connors' RSI-2 as a Pine Script v6 strategy: buy short-term panic in a long-term uptrend. On SPY since 1995: 254 trades, 75% winners, profit factor 2.53, max drawdown 16%. The optimiser's best setting scored 4.55 on 1995-2015 and 0.92 on the years it never saw; Connors' own setting scored 2.66 there and is the default.
+
+- Only long while the close is above the 200-day average.
+- Buy when the 2-period RSI drops below 10.
+- Exit when the close crosses above the 5-day average; no stop, as in the book (optional stop and max days inputs).
+
+## Paul Tudor Jones 200-Day Rule (Optimised)
+![Paul Tudor Jones 200-Day Rule (Optimised) on a TradingView chart](images/paul-tudor-jones-200-day-rule-chart.jpg)
+
+Paul Tudor Jones' rule, be in above the long moving average and out below it, as a Pine Script v6 strategy. On the Nifty since 2000 the optimised 100-day average made +1,574% against +1,298% buy-and-hold with a 22% max drawdown, profit factor 3.01, and held 2.60 on the unseen years.
+
+- Long when the close is above the average (plus an optional band); flat when it closes below.
+- Optional: require several closes beyond the line, or also go short below it.
+- A minimum of 40 trades kept the optimiser from picking settings with too few trades to judge.
 
 ## How to use
 1. In TradingView open the **Pine Editor**, create a new indicator (or strategy for strategy files).

@@ -1,0 +1,321 @@
+//@version=6
+// ─────────────────────────────────────────────────────────────────────────────
+//  Booming Bulls Sniper  ·  Liquidity-Sweep Strategy  (Anish Singh Thakur method)
+//  Decoded from the Booming Bulls channel (Oct 2026):
+//    • "How to Use Liquidity in Trading || Masterclass"  – levels = PDH / PDL (wick based),
+//      current-day H/L only after the day has travelled ≥ ATR(D) − 30 %, HTF order block.
+//    • "My High Accuracy Gold Trading Strategy" + "$125,000 Gold Trade" – the SNIPER entry:
+//      sweep the level (wick beyond, no close beyond) → confirmation candle from the zone →
+//      enter on the break of that candle ("never the first green candle, buy its new high")
+//      → SL beyond the sweep wick with room → target the opposite liquidity → trail.
+//    • "Best Trading Strategy for Prop Firms" – PROP mode: wait 30 min after open,
+//      inside candle closing inside the mother body, break of the mother within 2 bars,
+//      70/30 body rule, 1:1 target, one trade a day.
+//  Coinbase Champions Cup (Singapore, 8 Oct 2026): he went "full in, one side, one trade"
+//  – that is the Sniper short on ETH, so the default mode here is Sniper.
+// ─────────────────────────────────────────────────────────────────────────────
+strategy("Booming Bulls Sniper [Liquidity Sweep]", shorttitle = "BB Sniper", overlay = true,
+     initial_capital = 100000, default_qty_type = strategy.fixed, default_qty_value = 1,
+     margin_long = 0, margin_short = 0, pyramiding = 1, calc_on_every_tick = false,
+     commission_type = strategy.commission.percent, commission_value = 0.0,
+     max_bars_back = 500)
+
+// ───────────── Inputs ─────────────
+G1 = "1 · Mode & levels"
+mode        = input.string("Sniper (liquidity sweep)", "Strategy mode", options = ["Sniper (liquidity sweep)", "Prop firm (30-min inside bar)", "Both"], group = G1)
+usePD       = input.bool(true,  "Previous-day high / low (strongest level)", group = G1)
+usePW       = input.bool(false, "Previous-week high / low", group = G1)
+useCD       = input.bool(true,  "Current-day high / low (only after ATR travel)", group = G1)
+atrPct      = input.float(70, "Day must travel ≥ % of daily ATR before CDH/CDL count", minval = 10, maxval = 150, step = 5, group = G1, tooltip = "Anish: ATR(D) minus 20-30 %. 70 % = ATR − 30 %.")
+atrLenD     = input.int(14, "Daily ATR length", minval = 2, group = G1)
+cdMinAge    = input.int(6, "CDH/CDL must be ≥ N bars old", minval = 1, group = G1)
+
+G2 = "2 · Sniper rules"
+sweepWin    = input.int(8,  "Sweep → confirmation window (bars)", minval = 1, maxval = 50, group = G2)
+confType    = input.string("Opposite-colour candle", "Confirmation candle", options = ["Opposite-colour candle", "Engulfing"], group = G2)
+confBody    = input.float(50, "Confirmation body ≥ % of its range", minval = 0, maxval = 100, step = 5, group = G2)
+entryWin    = input.int(5,  "Break of confirmation candle within (bars)", minval = 1, maxval = 20, group = G2)
+slBufATR    = input.float(0.25, "SL buffer beyond sweep wick (× ATR)", minval = 0, step = 0.05, group = G2)
+atrLen      = input.int(14, "Chart ATR length", minval = 1, group = G2)
+tpMode      = input.string("Risk multiple", "Target", options = ["Risk multiple", "Opposite day level", "Nearer of the two"], group = G2)
+rr          = input.float(2.0, "Risk : reward (R)", minval = 0.5, step = 0.25, group = G2)
+beAtR       = input.float(1.0, "Move SL to breakeven at (R)   0 = off", minval = 0, step = 0.25, group = G2)
+trailAtR    = input.float(1.5, "Start trailing at (R)         0 = off", minval = 0, step = 0.25, group = G2)
+trailLen    = input.int(5, "Trail = lowest low / highest high of N bars", minval = 1, group = G2)
+
+G3 = "3 · Bias filter (market structure)"
+biasMode    = input.string("None", "Bias filter", options = ["None", "Swing structure (HH/HL · LH/LL)", "EMA slope"], group = G3)
+pivLen      = input.int(5, "Pivot length for structure", minval = 2, group = G3)
+emaLen      = input.int(50, "EMA length", minval = 2, group = G3)
+
+G4 = "4 · Prop-firm mode"
+sessOpen    = input.session("0930-1600", "Market session (exchange time)", group = G4)
+waitMin     = input.int(30, "Wait after open (minutes)", minval = 0, group = G4)
+bodyRule    = input.float(70, "70/30 rule: breakout body ≥ % of range", minval = 0, maxval = 100, step = 5, group = G4)
+propRR      = input.float(1.0, "Prop risk : reward", minval = 0.5, step = 0.25, group = G4)
+propSLbuf   = input.float(0.1, "Prop SL buffer (× ATR)", minval = 0, step = 0.05, group = G4)
+
+G5 = "5 · Risk & session"
+maxPerDay   = input.int(1, "Max trades per day", minval = 1, maxval = 10, group = G5)
+useTime     = input.bool(false, "Only trade inside this window", group = G5)
+tradeWin    = input.session("1230-2030", "Trading window (exchange time)", group = G5)
+dirAllowed  = input.string("Both", "Direction", options = ["Both", "Long only", "Short only"], group = G5)
+showLvls    = input.bool(true, "Show levels", group = G5)
+showMarks   = input.bool(true, "Show sweep and setup labels", group = G5)
+
+// ───────────── Daily / weekly levels (non-repainting: [1] + lookahead_on) ─────────────
+pdh  = request.security(syminfo.tickerid, "D", high[1],  lookahead = barmerge.lookahead_on)
+pdl  = request.security(syminfo.tickerid, "D", low[1],   lookahead = barmerge.lookahead_on)
+pwh  = request.security(syminfo.tickerid, "W", high[1],  lookahead = barmerge.lookahead_on)
+pwl  = request.security(syminfo.tickerid, "W", low[1],   lookahead = barmerge.lookahead_on)
+atrD = request.security(syminfo.tickerid, "D", ta.atr(atrLenD)[1], lookahead = barmerge.lookahead_on)
+atr  = ta.atr(atrLen)
+
+newDay = ta.change(time("D")) != 0
+var float dayHi = na
+var float dayLo = na
+var int   dayHiBar = na
+var int   dayLoBar = na
+var int   tradesToday = 0
+if newDay
+    dayHi := high
+    dayLo := low
+    dayHiBar := bar_index
+    dayLoBar := bar_index
+    tradesToday := 0
+else
+    if high > dayHi
+        dayHi := high
+        dayHiBar := bar_index
+    if low < dayLo
+        dayLo := low
+        dayLoBar := bar_index
+dayRange   = dayHi - dayLo
+cdReady    = useCD and not na(atrD) and dayRange >= atrD * atrPct / 100
+cdhLevel   = cdReady and bar_index - dayHiBar[1] >= cdMinAge ? dayHi[1] : na   // the high that existed BEFORE this bar
+cdlLevel   = cdReady and bar_index - dayLoBar[1] >= cdMinAge ? dayLo[1] : na
+
+// ───────────── Bias ─────────────
+ph = ta.pivothigh(high, pivLen, pivLen)
+pl = ta.pivotlow(low, pivLen, pivLen)
+var float lastPH = na, var float prevPH = na
+var float lastPL = na, var float prevPL = na
+if not na(ph)
+    prevPH := lastPH
+    lastPH := ph
+if not na(pl)
+    prevPL := lastPL
+    lastPL := pl
+structUp   = not na(prevPH) and not na(prevPL) and lastPH > prevPH and lastPL > prevPL
+structDown = not na(prevPH) and not na(prevPL) and lastPH < prevPH and lastPL < prevPL
+ema        = ta.ema(close, emaLen)
+emaUp      = ema > ema[3]
+longBiasOK  = biasMode == "None" ? true : biasMode == "EMA slope" ? emaUp     : structUp
+shortBiasOK = biasMode == "None" ? true : biasMode == "EMA slope" ? not emaUp : structDown
+
+// ───────────── Gates ─────────────
+inTradeWin = not useTime or not na(time(timeframe.period, tradeWin, syminfo.timezone))
+canLong    = dirAllowed != "Short only"
+canShort   = dirAllowed != "Long only"
+dayQuotaOK = tradesToday < maxPerDay
+flat       = strategy.position_size == 0
+sniperOn   = mode != "Prop firm (30-min inside bar)"
+propOn     = mode != "Sniper (liquidity sweep)"
+
+// ───────────── SNIPER: sweep detection ─────────────
+// A sweep = wick beyond the level, close back inside (no closing basis break).
+f_sweptHi(lvl) => not na(lvl) and high > lvl and close < lvl
+f_sweptLo(lvl) => not na(lvl) and low  < lvl and close > lvl
+
+sweepHiNow = (usePD and f_sweptHi(pdh)) or (usePW and f_sweptHi(pwh)) or f_sweptHi(cdhLevel)
+sweepLoNow = (usePD and f_sweptLo(pdl)) or (usePW and f_sweptLo(pwl)) or f_sweptLo(cdlLevel)
+
+var int   shortSweepBar = na
+var float shortSweepHi  = na       // highest wick of the sweep (SL anchor)
+var int   longSweepBar  = na
+var float longSweepLo   = na
+if sweepHiNow
+    shortSweepBar := bar_index
+    shortSweepHi  := high
+else if not na(shortSweepBar) and bar_index - shortSweepBar <= sweepWin
+    shortSweepHi := math.max(shortSweepHi, high)    // keep tracking the extreme while we wait
+if sweepLoNow
+    longSweepBar := bar_index
+    longSweepLo  := low
+else if not na(longSweepBar) and bar_index - longSweepBar <= sweepWin
+    longSweepLo := math.min(longSweepLo, low)
+shortArmed = not na(shortSweepBar) and bar_index - shortSweepBar <= sweepWin
+longArmed  = not na(longSweepBar)  and bar_index - longSweepBar  <= sweepWin
+
+// Confirmation candle from the zone
+rng       = high - low
+bodyPct   = rng > 0 ? math.abs(close - open) / rng * 100 : 0
+bearCandle = close < open and bodyPct >= confBody and (confType == "Engulfing" ? close < math.min(open[1], close[1]) : true)
+bullCandle = close > open and bodyPct >= confBody and (confType == "Engulfing" ? close > math.max(open[1], close[1]) : true)
+// confirmation must come after the sweep bar has closed (not the sweep bar itself, unless it is itself the rejection)
+shortConfirm = shortArmed and bearCandle and sweepHiNow == false
+longConfirm  = longArmed  and bullCandle and sweepLoNow == false
+
+var float pendShortTrig = na, var float pendShortSL = na, var int pendShortBar = na
+var float pendLongTrig  = na, var float pendLongSL  = na, var int pendLongBar  = na
+
+// ───────────── PROP FIRM: 30-min inside-bar reversal ─────────────
+sessStartOK = not na(time(timeframe.period, sessOpen, syminfo.timezone))
+sessOpened  = sessStartOK and not sessStartOK[1]
+var int sessOpenTime = na
+if sessOpened
+    sessOpenTime := time
+propWindow  = sessStartOK and not na(sessOpenTime) and (time - sessOpenTime) >= waitMin * 60000
+// mother = bar[2] or bar[3]; inside = next bar closes inside the mother body
+f_inside(m) => math.max(open[m-1], close[m-1]) <= math.max(open[m], close[m]) and math.min(open[m-1], close[m-1]) >= math.min(open[m], close[m])
+propBreakOK = bodyPct >= bodyRule
+// 3rd candle (mother at [2]) or 4th candle (mother at [3], bar [1] must not have broken already)
+propLong3  = close[2] < open[2] and f_inside(2) and close > high[2] and close > open
+propLong4  = close[3] < open[3] and f_inside(3) and high[1] <= high[3] and low[1] >= low[3] and close > high[3] and close > open
+propShort3 = close[2] > open[2] and f_inside(2) and close < low[2] and close < open
+propShort4 = close[3] > open[3] and f_inside(3) and high[1] <= high[3] and low[1] >= low[3] and close < low[3] and close < open
+propLong   = propOn and propWindow and propBreakOK and (propLong3 or propLong4)
+propShort  = propOn and propWindow and propBreakOK and (propShort3 or propShort4)
+propLongSL  = (propLong3 ? math.min(low[2], low[1], low) : math.min(low[3], low[2], low[1], low)) - propSLbuf * atr
+propShortSL = (propShort3 ? math.max(high[2], high[1], high) : math.max(high[3], high[2], high[1], high)) + propSLbuf * atr
+
+// ───────────── Position state ─────────────
+var float entryPx = na, var float slPx = na, var float tpPx = na, var float riskPx = na
+var string tradeKind = ""
+var bool  beDone = false
+
+// Arm pending sniper orders — ONE side at a time ("full in, one side, one trade")
+if sniperOn and flat and dayQuotaOK and inTradeWin
+    if shortConfirm and canShort and shortBiasOK
+        pendShortTrig := low
+        pendShortSL   := shortSweepHi + slBufATR * atr
+        pendShortBar  := bar_index
+        shortSweepBar := na                                 // consume the sweep
+        pendLongBar   := na                                 // a short setup cancels any waiting long
+        strategy.cancel("Sniper L")
+    else if longConfirm and canLong and longBiasOK
+        pendLongTrig := high
+        pendLongSL   := longSweepLo - slBufATR * atr
+        pendLongBar  := bar_index
+        longSweepBar := na
+        pendShortBar := na
+        strategy.cancel("Sniper S")
+// Expire stale pending orders
+if not na(pendShortBar) and bar_index - pendShortBar > entryWin
+    pendShortBar := na
+    strategy.cancel("Sniper S")
+if not na(pendLongBar) and bar_index - pendLongBar > entryWin
+    pendLongBar := na
+    strategy.cancel("Sniper L")
+
+f_target(isLong, e, sl) =>
+    r   = math.abs(e - sl)
+    tR  = isLong ? e + rr * r : e - rr * r
+    opp = isLong ? pdh : pdl
+    tLv = not na(opp) and (isLong ? opp > e + 0.3 * r : opp < e - 0.3 * r) ? opp : tR
+    tpMode == "Risk multiple" ? tR : tpMode == "Opposite day level" ? tLv : isLong ? math.min(tR, tLv) : math.max(tR, tLv)
+
+// Place / maintain sniper stop orders (placed at the close of the confirmation bar → live from the next bar)
+if flat and not na(pendShortBar) and na(pendLongBar)
+    strategy.entry("Sniper S", strategy.short, stop = pendShortTrig, comment = "Sniper short")
+if flat and not na(pendLongBar) and na(pendShortBar)
+    strategy.entry("Sniper L", strategy.long, stop = pendLongTrig, comment = "Sniper long")
+
+// Prop-firm market entries at the close of the breakout candle
+if flat and dayQuotaOK and inTradeWin and na(pendLongBar) and na(pendShortBar)
+    if propLong and canLong
+        strategy.entry("Prop L", strategy.long, comment = "Prop long")
+        entryPx := close
+        slPx    := propLongSL
+        riskPx  := entryPx - slPx
+        tpPx    := entryPx + propRR * riskPx
+        tradeKind := "prop"
+        beDone  := false
+    if propShort and canShort
+        strategy.entry("Prop S", strategy.short, comment = "Prop short")
+        entryPx := close
+        slPx    := propShortSL
+        riskPx  := slPx - entryPx
+        tpPx    := entryPx - propRR * riskPx
+        tradeKind := "prop"
+        beDone  := false
+
+// Detect a new fill (even one that opened AND closed inside this bar) and fix SL / TP for sniper trades
+totalFills = strategy.opentrades + strategy.closedtrades
+newFill    = totalFills > totalFills[1]
+if newFill
+    tradesToday += totalFills - totalFills[1]
+    pendLongBar  := na                                       // the setup is consumed – never re-fire the same stop order
+    pendShortBar := na
+    strategy.cancel("Sniper L")
+    strategy.cancel("Sniper S")
+justOpened = strategy.position_size != 0 and (newFill or math.sign(strategy.position_size) != math.sign(strategy.position_size[1]))
+if justOpened
+    isLong = strategy.position_size > 0
+    if tradeKind != "prop" or na(entryPx)
+        entryPx := strategy.position_avg_price
+        slPx    := isLong ? pendLongSL : pendShortSL
+        if na(slPx)                                          // safety net: never run without a stop
+            slPx := isLong ? entryPx - 2 * atr : entryPx + 2 * atr
+        riskPx  := math.abs(entryPx - slPx)
+        tpPx    := f_target(isLong, entryPx, slPx)
+        tradeKind := "sniper"
+        beDone  := false
+    else                                                     // prop trade: re-anchor to the real fill price
+        entryPx := strategy.position_avg_price
+        riskPx  := math.abs(entryPx - slPx)
+        tpPx    := isLong ? entryPx + propRR * riskPx : entryPx - propRR * riskPx
+
+// Manage open trade: breakeven + trail (Anish: "the green line keeps guiding me")
+trailLo = ta.lowest(low, trailLen)
+trailHi = ta.highest(high, trailLen)
+if strategy.position_size != 0 and not justOpened and tradeKind == "sniper"
+    isLong = strategy.position_size > 0
+    openR  = isLong ? (high - entryPx) / riskPx : (entryPx - low) / riskPx
+    if beAtR > 0 and not beDone and openR >= beAtR
+        slPx   := entryPx
+        beDone := true
+    if trailAtR > 0 and openR >= trailAtR
+        slPx := isLong ? math.max(slPx, trailLo) : math.min(slPx, trailHi)
+
+if strategy.position_size > 0
+    strategy.exit("X L", from_entry = tradeKind == "prop" ? "Prop L" : "Sniper L", stop = slPx, limit = tpPx, comment_loss = "SL", comment_profit = "TP")
+if strategy.position_size < 0
+    strategy.exit("X S", from_entry = tradeKind == "prop" ? "Prop S" : "Sniper S", stop = slPx, limit = tpPx, comment_loss = "SL", comment_profit = "TP")
+if flat and strategy.position_size[1] != 0
+    tradeKind := ""
+    entryPx := na
+    slPx := na
+    tpPx := na
+
+// ───────────── Visuals (plots only — render everywhere) ─────────────
+plot(showLvls and usePD ? pdh : na, "PDH", color.new(color.red, 0),   1, plot.style_linebr)
+plot(showLvls and usePD ? pdl : na, "PDL", color.new(color.green, 0), 1, plot.style_linebr)
+plot(showLvls and usePW ? pwh : na, "PWH", color.new(color.red, 50),  1, plot.style_circles)
+plot(showLvls and usePW ? pwl : na, "PWL", color.new(color.green, 50),1, plot.style_circles)
+plot(showLvls ? cdhLevel : na, "CDH (ATR-ready)", color.new(color.orange, 30), 1, plot.style_circles)
+plot(showLvls ? cdlLevel : na, "CDL (ATR-ready)", color.new(color.teal, 30),   1, plot.style_circles)
+
+plotshape(sniperOn and sweepHiNow and showMarks, "Sweep high", shape.triangledown, location.abovebar, color.new(color.red, 0),   size = size.tiny, text = "sweep")
+plotshape(sniperOn and sweepLoNow and showMarks, "Sweep low",  shape.triangleup,   location.belowbar, color.new(color.green, 0), size = size.tiny, text = "sweep")
+plotshape(shortConfirm and sniperOn and showMarks, "Short confirm", shape.labeldown, location.abovebar, color.new(color.red, 20),   text = "SNIPER\nsell @ break", textcolor = color.white, size = size.small)
+plotshape(longConfirm  and sniperOn and showMarks, "Long confirm",  shape.labelup,   location.belowbar, color.new(color.green, 20), text = "SNIPER\nbuy @ break",  textcolor = color.white, size = size.small)
+plotshape(propLong  and flat and showMarks, "Prop long",  shape.labelup,   location.belowbar, color.new(color.blue, 20),   text = "PROP\nbuy",  textcolor = color.white, size = size.small)
+plotshape(propShort and flat and showMarks, "Prop short", shape.labeldown, location.abovebar, color.new(color.purple, 20), text = "PROP\nsell", textcolor = color.white, size = size.small)
+
+inPos = strategy.position_size != 0
+plot(inPos ? entryPx : na, "Entry", color.new(color.gray, 0),   1, plot.style_linebr)
+plot(inPos ? slPx    : na, "Stop",  color.new(color.red, 0),    2, plot.style_linebr)
+plot(inPos ? tpPx    : na, "Target",color.new(color.green, 0),  2, plot.style_linebr)
+pendTrig = not na(pendLongBar) ? pendLongTrig : not na(pendShortBar) ? pendShortTrig : na
+plot(flat ? pendTrig : na, "Pending trigger", color.new(color.yellow, 0), 1, plot.style_circles)
+bgcolor(propOn and propWindow ? color.new(color.blue, 96) : na, title = "Prop window")
+bgcolor(sniperOn and (shortArmed or longArmed) ? color.new(color.orange, 92) : na, title = "Sweep armed")
+
+// ───────────── Alerts ─────────────
+alertcondition(shortConfirm and sniperOn, "Sniper: short setup", "BB Sniper SHORT setup – sell on break of {{low}}")
+alertcondition(longConfirm  and sniperOn, "Sniper: long setup",  "BB Sniper LONG setup – buy on break of {{high}}")
+alertcondition(propLong,  "Prop: long",  "BB Prop LONG at {{close}}")
+alertcondition(propShort, "Prop: short", "BB Prop SHORT at {{close}}")
+if justOpened
+    alert("BB Sniper filled " + (strategy.position_size > 0 ? "LONG" : "SHORT") + " @ " + str.tostring(entryPx, format.mintick) + " SL " + str.tostring(slPx, format.mintick) + " TP " + str.tostring(tpPx, format.mintick), alert.freq_once_per_bar)

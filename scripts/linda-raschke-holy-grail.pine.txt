@@ -1,0 +1,98 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © JayadevRana
+//@version=6
+// Linda Bradford Raschke — the "Holy Grail" setup from Street Smarts (Raschke & Connors, 1995):
+// a strong trend (ADX above 30, +DI above -DI for longs) pulls back to the 20 EMA; buy stop above the high
+// of the bar that touched the EMA, stop below the pullback low, target the recent swing high.
+// Defaults = the one setting that held on hourly Bank Nifty 2021-2026 after training on 2015-2020 (ADX 35, 10 EMA, trailing exit, long only);
+// the textbook values are ADX 30, 20 EMA, swing target, both directions.
+strategy("Holy Grail (Linda Raschke) [JR]", shorttitle = "Holy Grail", overlay = true,
+     initial_capital = 100000, default_qty_type = strategy.percent_of_equity, default_qty_value = 100,
+     commission_type = strategy.commission.percent, commission_value = 0.02, slippage = 2,
+     margin_long = 0, margin_short = 0, process_orders_on_close = false, pyramiding = 0)
+
+G1 = "1 · Trend strength"
+adxLen = input.int(14, "ADX / DMI length", minval = 5, group = G1)
+adxMin = input.float(35, "ADX must be above", minval = 10, step = 1, group = G1)
+adxRising = input.bool(false, "ADX must be rising at the setup", group = G1)
+G2 = "2 · Pullback and entry"
+emaLen  = input.int(10, "EMA length", minval = 5, group = G2)
+touchPct = input.float(0.0, "Touch tolerance (% of price)", minval = 0, step = 0.05, group = G2)
+armBars = input.int(3, "Buy stop stays live for N bars", minval = 1, maxval = 10, group = G2)
+dirMode = input.string("Long only", "Direction", options = ["Both", "Long only", "Short only"], group = G2)
+G3 = "3 · Exit"
+tpMode  = input.string("Trail EMA", "Target", options = ["Swing high/low", "Risk multiple", "Trail EMA"], group = G3)
+swingN  = input.int(20, "Swing lookback (bars)", minval = 5, group = G3)
+rr      = input.float(2.0, "Risk multiple (R)", minval = 0.5, step = 0.25, group = G3)
+G4 = "4 · Test window"
+fromT = input.time(timestamp("2000-01-01T00:00:00"), "Trade from", group = G4)
+toT   = input.time(timestamp("2100-01-01T00:00:00"), "Trade until", group = G4)
+showLv = input.bool(true, "Show EMA and setups", group = G4)
+
+inWin = time >= fromT and time <= toT
+[diPlus, diMinus, adx] = ta.dmi(adxLen, adxLen)
+ema = ta.ema(close, emaLen)
+tol = close * touchPct / 100
+strong  = adx > adxMin and (not adxRising or adx > adx[1])
+setupL  = dirMode != "Short only" and strong and diPlus > diMinus and low <= ema + tol and close >= ema - 2 * tol
+setupS  = dirMode != "Long only"  and strong and diMinus > diPlus and high >= ema - tol and close <= ema + 2 * tol
+
+lo3 = ta.lowest(low, 3)
+hi3 = ta.highest(high, 3)
+swHi = ta.highest(high, swingN)
+swLo = ta.lowest(low, swingN)
+var float trigL = na
+var float stopL = na
+var float tgtL = na
+var int   armL = 0
+var float trigS = na
+var float stopS = na
+var float tgtS = na
+var int   armS = 0
+if setupL
+    trigL := high
+    stopL := lo3
+    tgtL := swHi
+    armL := armBars
+if setupS
+    trigS := low
+    stopS := hi3
+    tgtS := swLo
+    armS := armBars
+
+flat = strategy.position_size == 0
+strategy.cancel_all()
+if flat and inWin
+    if armL > 0
+        strategy.entry("HG L", strategy.long, stop = trigL + syminfo.mintick)
+    if armS > 0
+        strategy.entry("HG S", strategy.short, stop = trigS - syminfo.mintick)
+armL := math.max(armL - 1, 0)
+armS := math.max(armS - 1, 0)
+
+var float sl = na
+var float tp = na
+if strategy.position_size > 0 and strategy.position_size[1] <= 0
+    sl := stopL
+    risk = strategy.position_avg_price - sl
+    tp := tpMode == "Risk multiple" ? strategy.position_avg_price + rr * risk : tpMode == "Swing high/low" ? math.max(tgtL, strategy.position_avg_price + risk) : na
+if strategy.position_size < 0 and strategy.position_size[1] >= 0
+    sl := stopS
+    risk = sl - strategy.position_avg_price
+    tp := tpMode == "Risk multiple" ? strategy.position_avg_price - rr * risk : tpMode == "Swing high/low" ? math.min(tgtS, strategy.position_avg_price - risk) : na
+if strategy.position_size > 0
+    if tpMode == "Trail EMA"
+        sl := math.max(sl, ema - tol)
+    strategy.exit("HG L x", "HG L", stop = sl, limit = tpMode == "Trail EMA" ? na : tp)
+if strategy.position_size < 0
+    if tpMode == "Trail EMA"
+        sl := math.min(sl, ema + tol)
+    strategy.exit("HG S x", "HG S", stop = sl, limit = tpMode == "Trail EMA" ? na : tp)
+if not inWin and not flat
+    strategy.close_all(comment = "window end")
+
+plot(showLv ? ema : na, "20 EMA", color.new(color.orange, 0), 2)
+plotshape(showLv and setupL, "Long setup", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.tiny)
+plotshape(showLv and setupS, "Short setup", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.tiny)
+plot(strategy.position_size != 0 ? sl : na, "Stop", color.new(color.red, 0), 2, plot.style_linebr)
+plot(strategy.position_size != 0 ? tp : na, "Target", color.new(color.teal, 0), 2, plot.style_linebr)
