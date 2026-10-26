@@ -5,6 +5,7 @@ Every script compiles cleanly in Pine Script v6; signal logic is non-repainting.
 
 **Copy-paste pages with snapshots:** https://jayadevrana.in/free-pine-script-indicators/
 **YouTube:** [@jayadevranaalgo](https://www.youtube.com/@jayadevranaalgo)
+**Try them free in the browser:** paste any of these scripts into the Script Editor on [SuperCharting](https://supercharting.com/), a browser charting platform (currently free) that runs Pine-compatible v6 indicators and strategies with a Strategy Tester on NSE/BSE, forex and crypto charts. SuperCharting is my own project and is not affiliated with TradingView.
 
 | Script | Type | What it does | Code | Video |
 |---|---|---|---|---|
